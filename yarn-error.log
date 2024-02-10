@@ -1,0 +1,97 @@
+Arguments: 
+  /Users/israel/.nvm/versions/node/v18.17.1/bin/node /usr/local/bin/yarn add algoliasearch react-instantsearch
+
+PATH: 
+  /Users/israel/bin:/usr/local/opt/gradle@7/bin:/Users/israel/.nvm/versions/node/v18.17.1/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/usr/local/MacGPG2/bin:/Users/israel/Library/Android/sdk/platform-tools:/Users/israel/Library/Android/sdk/cmdline-tools/latest/bin:/Users/israel/Library/Android/sdk/build-tools:/Users/israel/Library/Android/sdk/emulator
+
+Yarn version: 
+  1.22.11
+
+Node version: 
+  18.17.1
+
+Platform: 
+  darwin x64
+
+Trace: 
+  TypeError [ERR_INVALID_URL]: Invalid URL
+      at new NodeError (node:internal/errors:405:5)
+      at Url.parse (node:url:445:17)
+      at urlParse (node:url:167:13)
+      at Function.isVersion (/usr/local/lib/node_modules/yarn/lib/cli.js:37157:21)
+      at getExoticResolver (/usr/local/lib/node_modules/yarn/lib/cli.js:29675:18)
+      at PackageRequest.<anonymous> (/usr/local/lib/node_modules/yarn/lib/cli.js:36519:76)
+      at Generator.next (<anonymous>)
+      at step (/usr/local/lib/node_modules/yarn/lib/cli.js:310:30)
+      at /usr/local/lib/node_modules/yarn/lib/cli.js:321:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+npm manifest: 
+  {
+    "name": "remix-marketplace-app",
+    "version": "1.0.0",
+    "description": "",
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+      "build": "npm run build:css && remix build",
+      "build:css": "tailwindcss -m -i ./styles/app.css -o app/styles/app.css",
+      "dev": "concurrently --raw \"npm run dev:node\" \"npm run dev:css\"",
+      "dev:node": "remix dev -c \"node --inspect server.mjs\"",
+      "dev:css": "tailwindcss -w -o ./app/styles/app.css",
+      "format": "prettier --write .",
+      "lint": "eslint --ignore-path .gitignore --fix --cache --cache-location ./node_modules/.cache/eslint .",
+      "start": "remix-serve build",
+      "typecheck": "tsc -b",
+      "cypress:open": "yarn run cypress open",
+      "cypress:run": "yarn run cypress run"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+      "@babel/preset-env": "^7.23.6",
+      "@babel/preset-react": "^7.23.3",
+      "@babel/preset-typescript": "^7.23.3",
+      "@headlessui/react": "^1.7.17",
+      "@heroicons/react": "^2.1.1",
+      "@remix-run/express": "^2.4.0",
+      "@remix-run/node": "^2.4.0",
+      "@remix-run/react": "^2.4.0",
+      "@remix-run/serve": "^2.4.0",
+      "@tailwindcss/aspect-ratio": "^0.4.2",
+      "@tailwindcss/forms": "^0.5.7",
+      "express": "^4.18.2",
+      "isbot": "^3.7.1",
+      "postcss": "^8.4.32",
+      "react": "^18.2.0",
+      "react-dom": "^18.2.0",
+      "react-dropzone-esm": "^15.0.1",
+      "remix-auth": "^3.6.0",
+      "remix-auth-form": "^1.4.0",
+      "ts-loader": "^9.5.1"
+    },
+    "devDependencies": {
+      "@remix-run/dev": "^2.4.0",
+      "@types/react": "^18.2.45",
+      "@types/react-dom": "^18.2.18",
+      "@types/react-router-dom": "^5.3.3",
+      "concurrently": "^8.2.2",
+      "cypress": "^13.6.1",
+      "dotenv": "^16.3.1",
+      "eslint": "^8.56.0",
+      "eslint-config-prettier": "^9.1.0",
+      "eslint-plugin-json": "^3.1.0",
+      "eslint-plugin-tailwindcss": "^3.13.0",
+      "prettier": "^3.1.1",
+      "tailwindcss": "^3.4.0",
+      "ts-node": "^10.9.2",
+      "typescript": "^5.3.3"
+    }
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile

@@ -1,0 +1,27 @@
+{
+  "include": ["remix.env.d.ts", "**/*.ts", "**/*.tsx"],
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2019"],
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "target": "ES2019",
+    "strict": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./app/*"],
+      "@assets/*": ["./public/assets/*"]
+    },
+    "skipLibCheck": true,
+    "typeRoots": [
+      "node_modules/**/@types",
+      "node_modules/@types/testing-library__jest-dom"
+    ],
+    "noEmit": true
+  }
+}
