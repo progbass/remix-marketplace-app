@@ -25,9 +25,16 @@ import stylesheet from "../tailwind/tailwind.css";
 
 import getEnv from "get-env";
 import AuthService from "~/services/Auth.service";
+import {
+  sessionStorage,
+  getSession,
+  commitSession,
+} from "~/services/session.server";
+import authenticator from "~/services/auth.server";
 import { FetcherConfigurationProvider } from "~/providers/FetcherConfigurationContext";
 import { ShoppingCartProvider } from "~/providers/ShoppingCartContext";
 import { Fetcher } from "~/utils/fetcher";
+import setCookie from "set-cookie-parser";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
@@ -40,11 +47,54 @@ const searchClient = algoliasearch(
 );
 
 // LOADER FUNCTION
-export const loader: LoaderFunction = async ({ request }) => {
+export const loader: LoaderFunction = async ({ request, response }) => {
   // If the user is already authenticated redirect to /dashboard directly
   const user = (await AuthService.isAuthenticated(request)) || null;
+  let session = await getSession(request.headers.get("cookie"));
 
-  //
+  // Set the Cookies sent from the API server for Auth, CSRF, and Session management
+  let headers = undefined;
+  // Verify if the session is already set
+  if (!session.get(getEnv().API_SESSION_NAME)) {
+    console.log("---- GETTING THE SESSION COOKIE FROM THE API SERVER ----");
+    // Call the API server to get the session cookie
+    const cookieResponse = await fetch(
+      `${getEnv().API_URL}/sanctum/csrf-cookie`
+    );
+    const cookieHeader = cookieResponse.headers.get("Set-Cookie");
+
+    var splitCookieHeaders: Array<any> =
+      setCookie.splitCookiesString(cookieHeader);
+    var cookies: Array<any> = setCookie.parse(splitCookieHeaders);
+
+    // Search for the getEnv().API_SESSION_NAME cookie
+    const sessionCookie = cookies.find(
+      (cookie) => cookie.name === getEnv().API_SESSION_NAME
+    );
+    const xsrfCookie = cookies.find((cookie) => cookie.name === "XSRF-TOKEN");
+
+    // Save the sessionId in the session
+    session.set(getEnv().API_SESSION_NAME, sessionCookie.value);
+    session.set("XSRF-TOKEN", xsrfCookie.value);
+    session.set(authenticator.sessionKey, xsrfCookie.value);
+
+    // commit the session and add the auth cookies to the response
+    headers = new Headers({
+      "Set-Cookie": await sessionStorage.commitSession(session),
+    });
+    headers.append(
+      "Set-Cookie",
+      `${getEnv().API_SESSION_NAME}=${
+        sessionCookie.value
+      }; path=/; samesite=lax; SameSite=None; Secure`
+    );
+    headers.append(
+      "Set-Cookie",
+      `XSRF-TOKEN=${xsrfCookie.value}; path=/; samesite=lax; SameSite=None; Secure`
+    );
+  }
+
+  // Algolia InstantSearch SSR
   const serverUrl = request.url;
   const serverState = await getServerState(
     <TestFunction serverUrl={serverUrl} />,
@@ -53,15 +103,34 @@ export const loader: LoaderFunction = async ({ request }) => {
     }
   );
 
-  return json({
-    user: user,
-    ENV_VARS: {
-      API_URL: process.env.API_URL,
-      MARKETPLACE_URL: process.env.MARKETPLACE_URL,
+  // Fetch the shopping cart items
+  const myFetcher = new Fetcher(user?.token, request);
+  const shoppingCartItems = await myFetcher
+    .fetch(`${getEnv().API_URL}/cart`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+    
+  // Return the loader data
+  return json(
+    {
+      user: user,
+      ENV_VARS: {
+        API_URL: process.env.API_URL,
+        MARKETPLACE_URL: process.env.MARKETPLACE_URL,
+      },
+      request,
+      serverState,
+      serverUrl,
+      shoppingCartItems,
     },
-    serverState,
-    serverUrl,
-  });
+    { ...(headers ? { headers } : {}) }
+  );
 };
 
 type PageProps = {
@@ -95,11 +164,14 @@ function TestFunction({ serverState, serverUrl, children }: PageProps) {
 
 // MAIN APP COMPONENT
 export default function App() {
-  const { ENV_VARS, user, serverState, serverUrl } =
+  const { ENV_VARS, user, serverState, serverUrl, shoppingCartItems } =
     useLoaderData<typeof loader>();
 
   //
   const fetcher = new Fetcher(user ? user.token : null);
+
+  //
+  const cartItems = shoppingCartItems || [];
 
   //
   return (
@@ -122,7 +194,7 @@ export default function App() {
       <body className="h-full">
         <FetcherConfigurationProvider fetcher={fetcher}>
           <TestFunction serverState={serverState} serverUrl={serverUrl}>
-            <ShoppingCartProvider>
+            <ShoppingCartProvider items={cartItems}>
               <Outlet />
             </ShoppingCartProvider>
           </TestFunction>

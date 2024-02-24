@@ -44,6 +44,8 @@
     "react-instantsearch": "^7.5.4",
     "remix-auth": "^3.6.0",
     "remix-auth-form": "^1.4.0",
+    "set-cookie-parser": "^2.6.0",
+    "stripe": "^14.17.0",
     "ts-loader": "^9.5.1"
   },
   "devDependencies": {

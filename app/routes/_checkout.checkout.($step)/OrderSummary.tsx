@@ -27,12 +27,12 @@ export default function OrderSummary({
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
   const [cartItems, setCartItems] = useState<ShoppingCartShop[]>(
-    ShoppingCartInstance.getCart()
+    ShoppingCartInstance.getCart().cart
   );
 
   // Update the local state when the ShoppingCartInstance changes
   useEffect(() => {
-    setCartItems(ShoppingCartInstance.getCart());
+    setCartItems(ShoppingCartInstance.getCart().cart);
   }, [ShoppingCartInstance]);
 
   // Handle the delivery method change

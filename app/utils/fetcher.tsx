@@ -3,8 +3,10 @@
 //
 class Fetcher {
   private token: string;
-  constructor(token:string = '') {
+  private request: any;
+  constructor(token:string = '', request:any = null) {
     this.token = token;
+    this.request = request;
   }
 
   private configRequest = (options:any) => {
@@ -20,6 +22,16 @@ class Fetcher {
       options.body.append('_method', 'PUT');
     }
 
+    if(
+      options?.method === 'DELETE'
+      // && options?.headers?.["Content-Type"] === 'multipart/form-data'
+      && options?.body instanceof FormData
+    ) {
+      console.log('Spoofing DELETE request');
+      options.method = 'POST';
+      options.body.append('_method', 'DELETE');
+    }
+
     return options;
   }
 
@@ -29,7 +41,22 @@ class Fetcher {
       return headers;
     }
     headers["Authorization"] = undefined;
-    return headers;
+    const {Authorization, ...rest} = headers;
+    return rest;
+  }
+
+  private setCookieHeader = (headers:any) => {
+    if(this.request){
+      headers["Cookie"] = this.request.headers.get("Cookie");
+      return headers;
+    }
+    if(headers["Cookie"]){
+      headers["Cookie"] = headers["Cookie"];
+      return headers;
+    }
+    headers["Cookie"] = undefined;
+    const {Cookie, ...rest} = headers;
+    return rest;
   }
 
   private setContentTypeHeader = (headers:any) => {
@@ -44,6 +71,7 @@ class Fetcher {
     url: string, 
     options:{ 
       headers?: {
+        ["Cookie"]?:string,
         ["Content-Type"]?:string,
         ["Authorization"]?:string,
         ["Accept"]?:string,
@@ -53,7 +81,9 @@ class Fetcher {
       credentials?: "include" | "same-origin" | "omit" | undefined,
   }) => {
     let {headers = {}, body, ...formattedOptions} = this.configRequest(options) || {};
+    // formattedOptions.credentials = 'include';
     headers = this.setAuthorizationHeader(headers);
+    headers = this.setCookieHeader(headers);
     //headers = this.setContentTypeHeader(headers);
     console.log('headers ', headers, 'options ', formattedOptions, 'url ', url)
 

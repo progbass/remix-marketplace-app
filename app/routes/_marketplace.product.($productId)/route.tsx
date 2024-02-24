@@ -1,4 +1,5 @@
-import { Link, useLoaderData, useFetcher } from "@remix-run/react";
+import { Link, useLoaderData, useFetcher, useActionData } from "@remix-run/react";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Fragment, useState, useEffect } from "react";
 import { Tab } from "@headlessui/react";
@@ -6,11 +7,15 @@ import { StarIcon } from "@heroicons/react/20/solid";
 
 import type { ProductVariation } from "~/types/ProductVariation";
 import type { Product } from "~/types/Product";
-import type { ShoppingCartProduct, ShoppingCartShop } from "~/utils/ShoppingCart";
+import type {
+  ShoppingCartProduct,
+  ShoppingCartShop,
+} from "~/utils/ShoppingCart";
 
-import { useShoppingCart } from '~/providers/ShoppingCartContext';
+import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import classNames from "~/utils/classNames";
 import AuthService from "~/services/Auth.service";
+import { sessionStorage, getSession, commitSession } from "~/services/session.server";
 import getEnv from "get-env";
 import { Fetcher } from "~/utils/fetcher";
 import SelectBox from "~/components/SelectBox";
@@ -118,7 +123,7 @@ const relatedProducts = [
   // More products...
 ];
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
+export async function loader ({ request, params }: LoaderFunctionArgs) {
   // Attempt to get the user from the session
   const user = await AuthService.getCurrentUser({ request }).catch((err) => {
     console.log(err);
@@ -161,15 +166,36 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     relatedProducts: relatedProducts || [],
   };
 }
-export const action: ActionFunction = async ({ request }) => {
-  const userId = 724;
+export async function action ({ request }) {
   const formData = await request.formData();
   const action = formData.get("action");
+
+  // Handle form actions
   switch (action) {
     case "addToCart": {
-      const productId = formData.get("id");
-      // await addToCart(userId, String(productId));
-      console.log("product added to cart: ", productId);
+      const formValues = {};
+      formData.forEach((value, key) => {
+        console.log(key, value);
+        formValues[key] = value;
+      });
+
+      //
+      const myFetcher = new Fetcher(null, request);
+      const shoppingCartItems = await myFetcher
+        .fetch(`${getEnv().API_URL}/cart/add`, 
+        { 
+          method: "POST",
+          body: formData 
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+
+      console.log("product added to cart: ", shoppingCartItems);
+      return {
+        errors: null,
+        cart: shoppingCartItems?.cart
+      }
       break;
     }
     default: {
@@ -182,19 +208,36 @@ export const action: ActionFunction = async ({ request }) => {
 };
 
 export default function ProductPage() {
-  const addToCartForm = useFetcher({ key: "add-to-bag" });
-  const ShoppingCart = useShoppingCart(); 
+  // Shopping cart
+  const ShoppingCart = useShoppingCart();
   const [cart, setCart] = useState<ShoppingCartShop[]>(
-    ShoppingCart.getCart() || []
+    ShoppingCart.getCart().shops || []
   );
 
+  //
+  const addToCartForm = useFetcher({ key: "add-to-bag" });
+  useEffect(() => {
+    if (
+      cart &&
+      addToCartForm.state === "idle" &&
+      addToCartForm.data
+    ) {
+      console.log('cart ', addToCartForm.data);
+      ShoppingCart.setCart({ cart: addToCartForm.data.cart?.items || [], shipping: addToCartForm.data.cart?.shipping });
+    }
+  }, [cart, addToCartForm]);
+  
+  // Product details
   const { product: productDetails, relatedProducts } =
     useLoaderData<typeof loader>();
-  const product: Product = { ...productBase, ...productDetails }
+  const product: Product = { ...productBase, ...productDetails };
 
-  
+  // Submit form
   async function handleSyncAddToCart(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+    // event.preventDefault();
+
+
+    return;
     const formData = new FormData(event.target);
     const formValues = {};
     formData.forEach((value, key) => {
@@ -205,27 +248,28 @@ export default function ProductPage() {
     const shoppingCartProduct: ShoppingCartProduct = {
       id: product.id,
       name: product.name,
-      image: product.gallery[0] || undefined,
+      image: product?.gallery[0] || undefined,
       users_id: product.users_id,
       price: product.price,
       activateDiscount: product.activate_discount,
       discount: product.discount,
-      hasFreeShippig: false,
+      hasFreeShipping: false,
       brand: product.entrepreneur,
-      quantity: parseInt(formData.get("quantity") as string)
-    }
+      quantity: parseInt(formData.get("quantity") as string),
+    };
 
     //
     await ShoppingCart.addToCart(shoppingCartProduct);
     setCart(ShoppingCart.getCart());
   }
 
+  // Form state
   const [selectedQuantity, setSelectedQuantity] = useState<{
     id: number | string;
     name: string;
   }>({ id: 1, name: "1" });
 
-  console.log(product);
+  console.log('actionData ', addToCartForm.data);
 
   return (
     <div className="mx-auto px-4 pb-24 pt-14 sm:px-6 sm:pb-32 sm:pt-16 lg:max-w-7xl lg:px-8">
@@ -235,7 +279,7 @@ export default function ProductPage() {
         <div className="lg:col-span-4 lg:row-end-1">
           <div className="aspect-h-3 aspect-w-4 overflow-hidden rounded-lg bg-gray-100">
             <img
-              src={product.gallery[0] || undefined}
+              src={product?.gallery[0] || undefined}
               alt={product.name}
               className="object-cover object-center"
             />
@@ -284,8 +328,13 @@ export default function ProductPage() {
             <addToCartForm.Form method="post" onSubmit={handleSyncAddToCart}>
               <input
                 type="hidden"
-                name="productId"
+                name="id"
                 defaultValue={String(product.id)}
+              />
+              <input
+                type="hidden"
+                name="users_id"
+                defaultValue={String(product.users_id)}
               />
 
               <div>

@@ -1,4 +1,4 @@
-import { Link, Form } from "@remix-run/react";
+import { Link, Form, useFetcher } from "@remix-run/react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { useState, useContext, useEffect } from "react";
@@ -14,46 +14,11 @@ import type { Product } from "~/types/Product";
 import type { ShoppingCartProduct , ShoppingCartShop} from "~/utils/ShoppingCart";
 
 import classNames from "~/utils/classNames";
+import getEnv from "get-env";
+import Fetcher from "~/utils/fetcher";
 import {ShoppingCartContext} from '~/providers/ShoppingCartContext';
+import {useFetcherConfiguration} from '~/providers/FetcherConfigurationContext';
 
-const products = [
-  {
-    id: 1,
-    name: "Basic Tee",
-    href: "#",
-    price: "$32.00",
-    color: "Sienna",
-    inStock: true,
-    size: "Large",
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/shopping-cart-page-01-product-01.jpg",
-    imageAlt: "Front of men's Basic Tee in sienna.",
-  },
-  {
-    id: 2,
-    name: "Basic Tee",
-    href: "#",
-    price: "$32.00",
-    color: "Black",
-    inStock: false,
-    leadTime: "3–4 weeks",
-    size: "Large",
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/shopping-cart-page-01-product-02.jpg",
-    imageAlt: "Front of men's Basic Tee in black.",
-  },
-  {
-    id: 3,
-    name: "Nomad Tumbler",
-    href: "#",
-    price: "$35.00",
-    color: "White",
-    inStock: true,
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/shopping-cart-page-01-product-03.jpg",
-    imageAlt: "Insulated bottle with white base and black snap lid.",
-  },
-];
 const relatedProducts = [
   {
     id: 1,
@@ -85,63 +50,101 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 export async function action({
   request,
-}: ActionFunctionArgs) {
+}: ActionFunctionArgs):Promise<{
+  cart: Array<any>
+}> {
   const formData = await request.formData();
   const formAction = formData.get('action');
 
   let productId;
+  console.log('action fgunction', formAction)
+  for (const [key, value] of formData) {
+    console.log( `${key}: ${value}`);
+  }
   
   //
+  const myFetcher = new Fetcher(null, request);
+  let shoppingCartItems;
   switch(formAction){
-    case 'update':
-      productId = formData.get('productId');
-      const quantity = formData.get('quantity');
-      console.log('update product', productId, quantity);
+    case 'updateProduct':
+      
+    shoppingCartItems = await myFetcher
+        .fetch(`${getEnv().API_URL}/cart/add`, 
+        { 
+          method: "POST",
+          body: formData 
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+      console.log('update product', shoppingCartItems);
+      return {
+        cart: shoppingCartItems?.cart
+      }
       break;
-    case 'remove':
-      productId = formData.get('productId');
-      console.log('remove product', productId);
+    case 'removeProduct':
+      shoppingCartItems = await myFetcher
+        .fetch(`${getEnv().API_URL}/cart/remove`, 
+        { 
+          method: "DELETE",
+          body: formData 
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+      console.log('remove product', shoppingCartItems);
+      return {
+        cart: shoppingCartItems?.cart
+      }
       break;
     default:
       return redirect('/checkout/shipping');
       break;
   }
-
-  return {};
 }
 
 export default function ShoppingCart() {
+  const cartForm = useFetcher();
   const ShoppingCartInstance = useContext(ShoppingCartContext);
-  const [cartShops, setCartShops] = useState<ShoppingCartShop[]>(ShoppingCartInstance.getCart() || []);
-
-  // Update the local state when the ShoppingCartInstance changes
-  useEffect(() => {
-    setCartShops(ShoppingCartInstance.getCart());
-  }, [ShoppingCartInstance]);
-
-  console.log(cartShops)
-
+  const cartShops = ShoppingCartInstance.getCart().cart || [];
 
   // Handle product quantity changes
-  const handleProductQuantityChange = (product:ShoppingCartProduct, event: React.ChangeEvent<HTMLSelectElement>) => {
-    const quantity = event.target.value;
-    ShoppingCartInstance.updateProductQuantity(product, parseInt(quantity));
+  const handleProductQuantityChange = async (product:ShoppingCartProduct, event: React.FormEvent<HTMLFormElement>) => {
+    //
+    cartForm.submit({
+      ...product, 
+      action: 'updateProduct',
+      quantity: event.currentTarget.value
+    }, { method: 'post' });
+    
+    //
+    return;
   };
   const handleProductRemove = (product:ShoppingCartProduct) => {
-    ShoppingCartInstance.removeProductFromCart(product);
+    //
+    cartForm.submit({
+      ...product, 
+      action: 'removeProduct',
+    }, { method: 'post' });
+    
+    //
+    return;
   };
 
+  // Return the main component
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-16 sm:px-6 lg:max-w-7xl lg:px-8">
       <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
         Carrito de compras
       </h1>
 
-      <Form 
+      <cartForm.Form 
         method="post"
         className="mt-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 xl:gap-x-16"
       >
         <section aria-labelledby="cart-heading" className="lg:col-span-7">
+          <input type="hidden" name={`action`} defaultValue={'update'} />
+
           <h2 id="cart-heading" className="sr-only">
             Productos dentro de tu carrito
           </h2>
@@ -160,8 +163,13 @@ export default function ShoppingCart() {
                   </Link>
                 </h3>
                 
-                {shop.products.map((product, productIdx) => (
+                {shop.products.map((product:ShoppingCartProduct, productIdx) => (
                   <div key={product.id} className="flex mt-8" >
+                    
+                    <input type="hidden" name={`product[${productIdx}][id]`} defaultValue={product.id} />
+                    <input type="hidden" name={`product[${productIdx}][users_id]`} defaultValue={product.users_id} />
+                    <input type="hidden" name={`product[${productIdx}][modelo]`} defaultValue={product.modelo} />
+                    <input type="hidden" name={``} defaultValue={product.quantity} />
                     <div className="flex-shrink-0">
                       <img
                         src={product.image}
@@ -198,14 +206,14 @@ export default function ShoppingCart() {
 
                         <div className="mt-4 sm:mt-0 sm:pr-9">
                           <label
-                            htmlFor={`quantity-${productIdx}`}
+                            htmlFor={`product[${productIdx}][quantity]`}
                             className="sr-only"
                           >
                             Cantidad, {product.name}
                           </label>
                           <select
-                            id={`quantity-${productIdx}`}
-                            name={`quantity-${productIdx}`}
+                            id={`product[${productIdx}][quantity]`}
+                            name={`product[${productIdx}][quantity]`}
                             defaultValue={product.quantity}
                             onChange={event => handleProductQuantityChange(product, event)}
                             className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
@@ -330,7 +338,7 @@ export default function ShoppingCart() {
             </button>
           </div>
         </section>
-      </Form>
+      </cartForm.Form>
 
       {/* Related products */}
       <section aria-labelledby="related-heading" className="mt-24">

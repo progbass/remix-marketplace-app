@@ -1,31 +1,30 @@
 // ShoppingCartContext.js
 import { useState, useEffect, createContext, useContext } from "react";
 
-import useLocalStorage from "~/utils/useLocalStorage";
-import ShoppingCart from "~/utils/ShoppingCart";
+import ShoppingCart, { ShoppingCartType } from "~/utils/ShoppingCart";
 
 const ShoppingCartInstance = new ShoppingCart();
 const ShoppingCartContext = createContext(ShoppingCartInstance);
 
-export const ShoppingCartProvider = ({ children }) => {
-    const [localCart = '', setLocalCart] = useLocalStorage("cart");
-    const [shoppingCart, setShoppingCart] = useState(ShoppingCartInstance);
-    shoppingCart.setUIStateHandler(setLocalCart);
+export const ShoppingCartProvider = ({ children, items }) => {
+  const [shoppingCart, setShoppingCart] = useState(ShoppingCartInstance);
+  console.log('provider init ', items)
+  shoppingCart.setCart(items);
 
-    // Update shopping cart
-    useEffect(() => {
-        (async () => {
-        //
-        if (!localCart || localCart == "") {
-            return;
-        }
+  useEffect(() => {
+    const unsubscribe = shoppingCart.subscribe((currentCart:ShoppingCartType) => {
+      // Trigger a re-render when the items property is updated
+      // unsubscribe()
+      console.log('----------------------------------------------------------')
+      // shoppingCart.clear();
+      const updatedShoppingCart = new ShoppingCart(currentCart);
+      console.log('actualizando desde el provider inside', currentCart, updatedShoppingCart)
+      console.log('----------------------------------------------------------')
+      setShoppingCart(updatedShoppingCart);
+    });
 
-        // Sync ShoppingCart object with localstorage data
-        const parsedCart = JSON.parse(localCart);
-        console.log(parsedCart, "parsedCart")
-        setShoppingCart(new ShoppingCart(parsedCart));
-        })();
-    }, [localCart]); // empty dependency array means this effect runs only once, similar to componentDidMount
+    return () => unsubscribe();
+  }, [shoppingCart]);
 
 //
   return (

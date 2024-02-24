@@ -59,10 +59,10 @@ interface Option {
 }
 
 //
-const getCities = function async(state_id: number, user: object): Promise<any> {
+const getCities = function async(stateId: number, user: object): Promise<any> {
   const fetcher = new Fetcher();
   return fetcher
-    .fetch(`${getEnv().API_URL}/towns/${state_id}`, {})
+    .fetch(`${getEnv().API_URL}/towns/${stateId}`, {})
     .catch((error) => {
       throw new Error("Error fetching states data");
     });
@@ -499,8 +499,8 @@ export default function ShippingForm({ addressStatesList = [] }) {
               name="user[name]"
               type="text"
               label="Nombre"
-              autoComplete="firstName"
-              defaultValue={shippingAddress.firstName}
+              autoComplete="name"
+              defaultValue={shippingAddress.name}
               // errors={formErrors?.brand}
             />
           </div>
@@ -512,8 +512,8 @@ export default function ShippingForm({ addressStatesList = [] }) {
               name="user[lastname]"
               type="text"
               label="Apellidos"
-              autoComplete="lastName"
-              defaultValue={shippingAddress.lastName}
+              autoComplete="lastname"
+              defaultValue={shippingAddress.lastname}
               // errors={formErrors?.brand}
             />
           </div>
@@ -525,8 +525,8 @@ export default function ShippingForm({ addressStatesList = [] }) {
               name="user[street]"
               type="text"
               label="Dirección / Calle"
-              autoComplete="address"
-              defaultValue={shippingAddress.address}
+              autoComplete="street"
+              defaultValue={shippingAddress.street}
               // errors={formErrors?.brand}
             />
           </div>
@@ -565,7 +565,7 @@ export default function ShippingForm({ addressStatesList = [] }) {
               type="text"
               label="Código postal"
               autoComplete="zipcode"
-              defaultValue={shippingAddress.zip}
+              defaultValue={shippingAddress.zipcode}
               onChange={(event) => onZipCodeChange(event)}
               // errors={formErrors?.brand}
             />

@@ -25,7 +25,10 @@ export type Product = {
     longg: number;
     weight: number;
     models: Array<any>;
+
+    // Shipping
     delivery_time: string;
+    free_shipping: number|boolean;
 
     // Main gallery
     images_id: "";

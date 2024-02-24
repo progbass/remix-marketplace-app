@@ -1,5 +1,5 @@
-import { Fragment, useState, useContext, useEffect } from "react";
-import { Link, useLoaderData, useFetcher  } from "@remix-run/react";
+import { Fragment, useState, useContext } from "react";
+import { Link } from "@remix-run/react";
 import { Dialog, Popover, Tab, Transition } from "@headlessui/react";
 import { SearchBox } from 'react-instantsearch';
 
@@ -11,9 +11,6 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-
-import type { Product } from "~/types/Product";
-import type { ShoppingCartProduct, ShoppingCartShop } from "~/utils/ShoppingCart";
 
 import classNames from "~/utils/classNames";
 import {ShoppingCartContext} from '~/providers/ShoppingCartContext';
@@ -125,16 +122,11 @@ const footerNavigation = {
 const AppShield = ({ header, sidebar, content, variant }: Props) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-
+  // Shopping Cart
   const ShoppingCartInstance = useContext(ShoppingCartContext);
-  const [cart, setCart] = useState<ShoppingCartShop[]>(ShoppingCartInstance.getCart() || []);
-
-  // Update the local state when the ShoppingCartInstance changes
-  useEffect(() => {
-    setCart(ShoppingCartInstance.getCart());
-  }, [ShoppingCartInstance]);
-
   const optimisticCount = ShoppingCartInstance.getProductsCount();
+
+  // Return the main component
   return (
     <div className="bg-white">
       
@@ -712,7 +704,7 @@ const AppShield = ({ header, sidebar, content, variant }: Props) => {
                             {optimisticCount}
                           </span>
                           <span className="sr-only">
-                            items in cart, view bag
+                            productos, ver carrito
                           </span>
                         </Link>
                       </div>

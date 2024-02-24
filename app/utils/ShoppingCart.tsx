@@ -4,16 +4,16 @@ import type { Product } from "~/types/Product";
 export type ShippingInformation = {
   phone: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  address: string;
+  name: string;
+  lastname: string;
+  street: string;
   num_ext: string;
   num_int?: string;
-  city: number;
+  town_id: number;
   cityName: string;
-  state: string | number;
+  state_id: string | number;
   stateName: string;
-  zip: number;
+  zipcode: number;
   neighborhood: string;
 };
 
@@ -25,7 +25,7 @@ export type ShoppingCartProduct = {
   price: number;
   activateDiscount: boolean | number;
   discount: number;
-  hasFreeShippig: boolean;
+  hasFreeShipping: boolean | number;
   brand: string;
   quantity: number;
   modelo: number | null;
@@ -45,7 +45,7 @@ export type ShoppingCartShop = {
   timestamp: string | null;
 };
 export type ShoppingCartType = {
-  shops: ShoppingCartShop[];
+  cart: ShoppingCartShop[];
   shipping: ShippingInformation;
 };
 export type ShippingMethod = {
@@ -89,52 +89,69 @@ export type ShippingQuote = {
 
 //
 const defaultShipping: ShippingInformation = {
-  address: "",
+  street: "",
   num_ext: "",
   num_int: "",
-  city: 0,
+  town_id: 0,
   cityName: "",
-  state: 0,
+  state_id: 0,
   stateName: "",
   neighborhood: "",
-  zip: 0,
+  zipcode: 0,
   phone: "",
   email: "",
-  firstName: "",
-  lastName: ""
+  name: "",
+  lastname: ""
 };
 
 //
 class ShoppingCart {
-  private setState: string | ((nextState: string | null) => void) | null =
-    () => {};
+  private setState: Function = () => {};
+  private subscribers: Function[] = [];
   private products: ShoppingCartProduct[] = [];
-  private shops: ShoppingCartShop[] = [];
-  private shipping: ShippingInformation;
+  private cart: ShoppingCartShop[] = [];
+  private shipping: ShippingInformation = defaultShipping;
 
   /**
    * Constructs a new instance of the ShoppingCart class.
    * @param products The initial array of products in the shopping cart.
    */
-  constructor(cart: {
-    shops: ShoppingCartShop[];
-    shipping: ShippingInformation;
+  constructor(cart:ShoppingCartType = {
+    cart: [],
+    shipping: defaultShipping,
   }) {
     this.shipping = cart?.shipping
       ? this.formatShippingAddress(cart?.shipping)
       : this.formatShippingAddress(defaultShipping);
-    this.shops = this.reduceShops(cart?.shops || []);
-    this.updateState();
+    this.cart = this.reduceShops(cart?.cart || []);
   }
 
-  public setUIStateHandler(
-    setStateFunction: string | ((nextState: string | null) => void) | null
-  ): void {
-    this.setState = setStateFunction;
+  public setCart(cart: ShoppingCartType): void {
+    this.initCart(cart);
   }
-  private updateState(): void {
-    this.setState &&
-      this.setState(JSON.stringify(this.buildShoppingCartObject()) || "");
+
+  protected initCart(cart: ShoppingCartType): void {
+    this.shipping = cart?.shipping
+      ? this.formatShippingAddress(cart?.shipping)
+      : this.formatShippingAddress(defaultShipping);
+    this.cart = this.reduceShops(cart?.cart || []);
+    this.notifySubscribers();
+  }
+
+  public subscribe(
+    callback: Function
+  ): Function {
+    this.subscribers.push(callback);
+    // Return unsubscribe function
+    return () => {
+      this.subscribers = this.subscribers.filter(subscriber => subscriber !== callback);
+    };
+  }
+  private async notifySubscribers(): Promise<void> {
+    const reference = this.getCart();
+    // this.setState 
+    //   && this.setState(this);
+    this.subscribers.forEach(subscriber => subscriber(reference));
   }
 
   private reduceProducts(
@@ -146,7 +163,7 @@ class ShoppingCart {
       if (existingProduct) {
         existingProduct.quantity += product.quantity;
       } else {
-        acc.push(product);
+        acc.push(this.getFormattedProduct(product));
       }
       return acc;
     }, [] as ShoppingCartProduct[]);
@@ -164,12 +181,32 @@ class ShoppingCart {
           ...shop.products,
         ]);
       } else {
-        acc.push(shop);
+        acc.push({
+          ...shop,
+          products: this.reduceProducts(shop.products),
+        });
       }
       return acc;
     }, [] as ShoppingCartShop[]);
 
     return reducedShops;
+  }
+
+  private getFormattedProduct(product: ShoppingCartProduct): ShoppingCartProduct {
+    return {
+      id: product.id,
+      name: product.name,
+      image: product.image,
+      users_id: product.users_id,
+      price: product.price,
+      activateDiscount: product.activateDiscount,
+      discount: product.discount,
+      hasFreeShipping: product.hasFreeShipping,
+      brand: product.brand,
+      modelo: product.modelo,
+      delivery_time: product.delivery_time,
+      quantity: parseInt(product.quantity.toString(), 10)
+    };
   }
 
   private addProductToShop(product: ShoppingCartProduct): void {
@@ -182,22 +219,24 @@ class ShoppingCart {
       price: 0,
       activateDiscount: false,
       discount: 0,
-      hasFreeShippig: false,
+      hasFreeShipping: false,
       brand: "",
       quantity: 0,
       modelo: null,
       delivery_time: 0,
     };
-    const formattedProduct = { ...emptyProduct, ...product };
-    console.log("formattedProduct", formattedProduct);
+    const formattedProduct = { 
+      ...emptyProduct, 
+      ...this.getFormattedProduct(product),
+    };
 
     // Search for the product's shop
-    const shop = this.shops.find((s) => s.id === formattedProduct.users_id);
+    const shop = this.cart.find((s) => s.id === formattedProduct.users_id);
 
     // If the show is not in the cart, add it and include the product
     if (!shop) {
-      this.shops = [
-        ...this.shops,
+      this.cart = [
+        ...this.cart,
         {
           id: formattedProduct.users_id,
           name: formattedProduct.brand,
@@ -224,7 +263,7 @@ class ShoppingCart {
       ];
 
       // Update the shop in the cart
-      this.shops = [...this.shops.filter((s) => s.id !== shop.id), shop];
+      this.cart = [...this.cart.filter((s) => s.id !== shop.id), shop];
     }
   }
   async addToCart(product: ShoppingCartProduct): Promise<ShoppingCartShop[]> {
@@ -232,10 +271,10 @@ class ShoppingCart {
     this.addProductToShop(product);
 
     // Update state callback
-    this.updateState();
+    this.notifySubscribers();
 
     // Return the list of products
-    return this.getCart();
+    return this.getCart().cart;
   }
 
   private calculateProductMaxQuantity(nextQuantity: number): number {
@@ -256,11 +295,11 @@ class ShoppingCart {
     quantity: number
   ): Promise<ShoppingCartShop[]> {
     // Look for the  product in within the shops
-    const shop = this.shops.find((s) => s.id === product.users_id);
+    const shop = this.cart.find((s) => s.id === product.users_id);
 
     // If the shop was not found, return the current items list
     if (!shop) {
-      return this.getCart();
+      return this.getCart().cart;
     }
 
     // Update product quantity
@@ -276,47 +315,47 @@ class ShoppingCart {
     if (reducedProduct.quantity > 0) {
       shop.products = [...shop.products, reducedProduct];
     }
-    this.shops = this.shops.filter((s) => s.id !== shop.id);
+    this.cart = this.cart.filter((s) => s.id !== shop.id);
     if (shop.products.length) {
-      this.shops = [...this.shops, shop];
+      this.cart = [...this.cart, shop];
     }
 
     // Update state callback
-    this.updateState();
+    this.notifySubscribers();
 
     // Return the list of products
-    return this.getCart();
+    return this.getCart().cart;
   }
   async removeProductFromCart(
     product: ShoppingCartProduct
   ): Promise<ShoppingCartShop[]> {
     // Look for the  product in within the shops
-    const shop = this.shops.find((s) => s.id === product.users_id);
+    const shop = this.cart.find((s) => s.id === product.users_id);
 
     // If the shop was not found, return the current items list
     if (!shop) {
-      return this.getCart();
+      return this.getCart().cart;
     }
 
     // Remove product from cart
     shop.products = shop.products.filter((p) => p.id !== product.id);
-    this.shops = [...this.shops.filter((s) => s.id !== shop.id)];
+    this.cart = [...this.cart.filter((s) => s.id !== shop.id)];
     if (shop.products) {
-      this.shops.push(shop);
+      this.cart.push(shop);
     }
 
     // Update state callback
-    this.updateState();
+    this.notifySubscribers();
 
     // Return the list of products
-    return this.getCart();
+    return this.getCart().cart;
   }
 
   private buildShoppingCartObject = (): ShoppingCartType => {
-    console.log("this.shops", this.shops);
+    console.log("this.cart", this.cart);
     console.log("this.shipping", this.shipping);
     return {
-      shops: this.shops,
+      cart: this.cart,
       shipping: this.shipping,
     };
   };
@@ -326,7 +365,7 @@ class ShoppingCart {
    * @returns The subtotal of the shopping cart.
    */
   public getSubtotal(): number {
-    let calculatedAmount: number = this.shops.reduce(
+    let calculatedAmount: number = this.cart.reduce(
       (shopTotal, shop) =>
         shopTotal +
         shop.products.reduce(
@@ -345,14 +384,14 @@ class ShoppingCart {
    */
   public getShippingCost(): number {
     // Calculate shipping cost by checking eacho shop
-    const calculatedAmount: number = this.shops.reduce(
+    const calculatedAmount: number = this.cart.reduce(
       (shopTotal, shop) =>
         shopTotal +
         (shop.selectedShippingMethod ? shop.selectedShippingMethod.amount : 0),
       0
     );
 
-    // return this.products.some((p) => p.hasFreeShippig) ? 0 : 10;
+    // return this.products.some((p) => p.hasFreeShipping) ? 0 : 10;
     return parseFloat(Number(calculatedAmount).toFixed(2));
   }
 
@@ -376,14 +415,14 @@ class ShoppingCart {
    * Get the list of items in the shopping cart.
    * @returns The items in the shopping cart.
    */
-  public getCart(): ShoppingCartShop[] {
+  public getCart(): ShoppingCartType {
     // Sort stores by shop name
-    const sortedShops = this.shops.sort((a, b) => {
-      const nameA = a.name.toUpperCase();
-      const nameB = b.name.toUpperCase();
-      return nameA.localeCompare(nameB);
-    });
-    return sortedShops;
+    // const sortedShops = this.shops.sort((a, b) => {
+    //   const nameA = a.name.toUpperCase();
+    //   const nameB = b.name.toUpperCase();
+    //   return nameA.localeCompare(nameB);
+    // });
+    return this.buildShoppingCartObject();//sortedShops;
   }
 
   /**
@@ -391,8 +430,9 @@ class ShoppingCart {
    * @returns The number of products in the shopping cart.
    */
   public getProductsCount(): number {
-    const shops = this.getCart();
-    return shops.reduce(
+    const cart = this.getCart().cart;
+    console.log("cart", cart);
+    return cart.reduce(
       (shopTotal, shop) =>
         shopTotal +
         shop.products.reduce(
@@ -415,16 +455,16 @@ class ShoppingCart {
     // Validate the shipping information
     if (
       !shipping ||
-      !shipping.address ||
-      !shipping.city ||
-      !shipping.state ||
-      !shipping.zip ||
+      !shipping.street ||
+      !shipping.town_id ||
+      !shipping.state_id ||
+      !shipping.zipcode ||
       !shipping.neighborhood ||
       !shipping.num_ext ||
       !shipping.phone ||
       !shipping.email ||
-      !shipping.firstName ||
-      !shipping.lastName
+      !shipping.name ||
+      !shipping.lastname
     ) {
       throw new Error("Invalid shipping information");
     }
@@ -433,7 +473,7 @@ class ShoppingCart {
     this.shipping = this.formatShippingAddress(shipping);
 
     // Update state callback
-    this.updateState();
+    this.notifySubscribers();
 
     // Add the shipping information to the shopping cart
     return this.shipping;
@@ -442,17 +482,17 @@ class ShoppingCart {
     shipping: ShippingInformation
   ): ShippingInformation {
     return {
-      address: shipping.address,
-      city: Number(shipping.city),
-      state: Number(shipping.state),
-      zip: Number(shipping.zip),
+      street: shipping.street,
+      town_id: Number(shipping.town_id),
+      state_id: Number(shipping.state_id),
+      zipcode: Number(shipping.zipcode),
       num_ext: shipping.num_ext,
       num_int: shipping.num_int,
       neighborhood: shipping.neighborhood,
       phone: shipping.phone,
       email: shipping.email,
-      firstName: shipping.firstName,
-      lastName: shipping.lastName,
+      name: shipping.name,
+      lastname: shipping.lastname,
       cityName: shipping.cityName,
       stateName: shipping.stateName
     };
@@ -491,22 +531,22 @@ class ShoppingCart {
     });
 
     // Find the matching shop and add the shipping quotes
-    this.shops = this.shops.map((shop) => {
+    this.cart = this.cart.map((shop) => {
       const matchingQuote = sortedQuotes.find(
         (quote: any) => quote.to_users_id === shop.id
       );
       if (matchingQuote) {
-        shop.shippingQuotes = matchingQuote || [];
+        shop.shippingQuotes = [matchingQuote] || [];
         shop.selectedShippingMethod = matchingQuote.deliveries[0] || null;
       }
       return shop;
     });
 
     // Update state callback
-    this.updateState();
+    this.notifySubscribers();
 
     // Add the shipping quotes to the shopping cart
-    return this.getCart();
+    return this.getCart().cart;
   }
 
   /**
@@ -527,21 +567,41 @@ class ShoppingCart {
     }
 
     // Find the matching shop and add the selected shipping method
-    const shop = this.shops.find((s) => s.id === shopId);
+    const shop = this.cart.find((s) => s.id === shopId);
     if (!shop) {
       throw new Error("Shop ID not found in the shopping cart");
     }
     shop.selectedShippingMethod = shippingMethod;
 
     // Update the shop in the cart
-    this.shops = this.shops.filter((s) => s.id !== shop.id);
-    this.shops = [...this.shops, shop];
+    this.cart = this.cart.filter((s) => s.id !== shop.id);
+    this.cart = [...this.cart, shop];
 
     // Update state callback
-    this.updateState();
+    this.notifySubscribers();
 
     // Add the selected shipping method to the shopping cart
     return shippingMethod;
+  }
+
+  /**
+   * Clear the shopping cart.
+   * @returns The empty shopping cart.
+   * @throws {Error} If the shopping cart is not available.
+   */
+  public clear(): ShoppingCartType {
+    // Clear the shopping cart
+    this.cart = [];
+    this.shipping = defaultShipping;
+
+    // Update state callback
+    this.notifySubscribers();
+
+    // Remove all sobscribers
+    this.subscribers = [];
+
+    // Return the empty shopping cart
+    return this.getCart();
   }
 }
 

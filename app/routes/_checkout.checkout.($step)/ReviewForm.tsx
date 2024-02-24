@@ -43,27 +43,22 @@ export default function ReviewForm() {
     ShoppingCartInstance.getShipping()
   );
 
-  // Update the local state when the ShoppingCartInstance changes
-  useEffect(() => {
-    setShippingInformation(ShoppingCartInstance.getShipping());
-  }, [ShoppingCartInstance]);
-
   //
   return (
     <>
       {/* Shipping Information */}
       <div>
-        <input type="hidden" name="user[name]" value={shippingInformation.firstName} />
-        <input type="hidden" name="user[lastname]" value={shippingInformation.lastName} />
+        <input type="hidden" name="user[name]" value={shippingInformation.name} />
+        <input type="hidden" name="user[lastname]" value={shippingInformation.lastname} />
         <input type="hidden" name="user[email]" value={shippingInformation.email} />
         <input type="hidden" name="user[phone]" value={shippingInformation.phone} />
-        <input type="hidden" name="user[address]" value={shippingInformation.address} />
+        <input type="hidden" name="user[street]" value={shippingInformation.street} />
         <input type="hidden" name="user[num_ext]" value={shippingInformation.num_ext} />
         <input type="hidden" name="user[num_int]" value={shippingInformation.num_int} />
         <input type="hidden" name="user[neighborhood]" value={shippingInformation.neighborhood} />
-        <input type="hidden" name="user[zipcode]" value={shippingInformation.zip} />
-        <input type="hidden" name="user[town_id]" value={shippingInformation.city} />
-        <input type="hidden" name="user[state_id]" value={shippingInformation.state} />
+        <input type="hidden" name="user[zipcode]" value={shippingInformation.zipcode} />
+        <input type="hidden" name="user[town_id]" value={shippingInformation.town_id} />
+        <input type="hidden" name="user[state_id]" value={shippingInformation.state_id} />
 
         <h2 className="text-lg font-medium text-gray-900">Datos de entrega</h2>
       
@@ -71,10 +66,10 @@ export default function ReviewForm() {
           <div className="flex w-full items-center justify-between space-x-6 p-6">
             <div className="flex-1 truncate">
               <div className="flex items-center space-x-3">
-                <h3 className="truncate text-sm font-medium text-gray-900">{shippingInformation.firstName} {shippingInformation.lastName}</h3>
+                <h3 className="truncate text-sm font-medium text-gray-900">{shippingInformation.name} {shippingInformation.lastname}</h3>
               </div>
-              <p className="mt-1 truncate text-sm text-gray-500">{shippingInformation.address} {shippingInformation.num_ext}, {shippingInformation.num_int ? `Int. ${shippingInformation.num_int}` : ''}</p>
-              <p className="mt-1 truncate text-sm text-gray-500">{shippingInformation.neighborhood} {shippingInformation.zip}, {shippingInformation.cityName}, {shippingInformation.stateName}</p>
+              <p className="mt-1 truncate text-sm text-gray-500">{shippingInformation.street} {shippingInformation.num_ext}, {shippingInformation.num_int ? `Int. ${shippingInformation.num_int}` : ''}</p>
+              <p className="mt-1 truncate text-sm text-gray-500">{shippingInformation.neighborhood} {shippingInformation.zipcode}, {shippingInformation.cityName}, {shippingInformation.stateName}</p>
             </div>
             
             <Link
