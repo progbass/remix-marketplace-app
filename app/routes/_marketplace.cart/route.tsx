@@ -11,13 +11,12 @@ import {
 } from "@heroicons/react/20/solid";
 
 import type { Product } from "~/types/Product";
-import type { ShoppingCartProduct , ShoppingCartShop} from "~/utils/ShoppingCart";
+import type { ShoppingCartProduct , ShoppingCartShop, ShoppingCartType} from "~/utils/ShoppingCart";
 
 import classNames from "~/utils/classNames";
 import getEnv from "get-env";
 import Fetcher from "~/utils/fetcher";
-import {ShoppingCartContext} from '~/providers/ShoppingCartContext';
-import {useFetcherConfiguration} from '~/providers/FetcherConfigurationContext';
+import {useShoppingCart} from '~/providers/ShoppingCartContext';
 
 const relatedProducts = [
   {
@@ -33,57 +32,36 @@ const relatedProducts = [
   // More products...
 ];
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
-  const cartStep = params.step;
-
-  switch(cartStep){
-    case 'shipping':
-      return {
-        CartStepForm: 'shipping'
-      };
-    default:
-  }
-
-  // Return to the cart page
-  redirect('/cart');
-  return {};
-}
 export async function action({
   request,
 }: ActionFunctionArgs):Promise<{
-  cart: Array<any>
+  cart: ShoppingCartType | {}
 }> {
   const formData = await request.formData();
   const formAction = formData.get('action');
-
-  let productId;
-  console.log('action fgunction', formAction)
-  for (const [key, value] of formData) {
-    console.log( `${key}: ${value}`);
-  }
   
-  //
+  // Create a new Fetcher instance
   const myFetcher = new Fetcher(null, request);
-  let shoppingCartItems;
+
+  // Handle the form actions
+  let cart:ShoppingCartType | {} = {};
   switch(formAction){
     case 'updateProduct':
-      
-    shoppingCartItems = await myFetcher
-        .fetch(`${getEnv().API_URL}/cart/add`, 
-        { 
-          method: "POST",
-          body: formData 
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-      console.log('update product', shoppingCartItems);
-      return {
-        cart: shoppingCartItems?.cart
-      }
+      // Add/Update product to the shopping cart
+      cart = await myFetcher
+          .fetch(`${getEnv().API_URL}/cart/add`, 
+          { 
+            method: "POST",
+            body: formData 
+          })
+          .catch((err) => {
+            console.log(err);
+          });
       break;
+
     case 'removeProduct':
-      shoppingCartItems = await myFetcher
+      // Remove the product
+      cart = await myFetcher
         .fetch(`${getEnv().API_URL}/cart/remove`, 
         { 
           method: "DELETE",
@@ -92,25 +70,26 @@ export async function action({
         .catch((err) => {
           console.log(err);
         });
-      console.log('remove product', shoppingCartItems);
-      return {
-        cart: shoppingCartItems?.cart
-      }
       break;
+
     default:
-      return redirect('/checkout/shipping');
       break;
+  }
+
+  // Return data
+  return {
+    cart: cart || {}
   }
 }
 
 export default function ShoppingCart() {
-  const cartForm = useFetcher();
-  const ShoppingCartInstance = useContext(ShoppingCartContext);
+  const cartForm = useFetcher<typeof action>();
+  const ShoppingCartInstance = useShoppingCart();
   const cartShops = ShoppingCartInstance.getCart().cart || [];
 
   // Handle product quantity changes
   const handleProductQuantityChange = async (product:ShoppingCartProduct, event: React.FormEvent<HTMLFormElement>) => {
-    //
+    // Submit the form
     cartForm.submit({
       ...product, 
       action: 'updateProduct',
@@ -120,6 +99,8 @@ export default function ShoppingCart() {
     //
     return;
   };
+
+  // Handle remove product
   const handleProductRemove = (product:ShoppingCartProduct) => {
     //
     cartForm.submit({
@@ -130,6 +111,13 @@ export default function ShoppingCart() {
     //
     return;
   };
+
+  // Update shopping cart object when the form action data changes
+  useEffect(() => {
+    if(cartForm.state == "idle" && cartForm.data?.cart){
+      ShoppingCartInstance.setCart(cartForm.data?.cart || {});
+    }
+  }, [cartForm]);
 
   // Return the main component
   return (
@@ -145,127 +133,140 @@ export default function ShoppingCart() {
         <section aria-labelledby="cart-heading" className="lg:col-span-7">
           <input type="hidden" name={`action`} defaultValue={'update'} />
 
-          <h2 id="cart-heading" className="sr-only">
-            Productos dentro de tu carrito
-          </h2>
+          {cartShops.length === 0 ? (
+            <div className="flex flex-col items-center justify-center">
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                Tu carrito está vacío
+              </h2>
+              <p className="mt-4 text-lg text-gray-500">
+                ¡Agrega productos a tu carrito para continuar!
+              </p>
+            </div>
+          ) : (
+            <>
+              <h2 id="cart-heading" className="sr-only">
+                Productos dentro de tu carrito
+              </h2>
 
-          <ul
-            role="list"
-            className="divide-y divide-gray-200 border-b border-t border-gray-200"
-          >
-            {cartShops.map((shop) => (
-              <li key={shop.id} className="py-6 sm:py-10 mt-8">
-                <h3 
-                  className="text-md font-medium text-gray-900"
-                >
-                  <Link to={`/shop/${shop.id}`}>
-                    {shop.name}
-                  </Link>
-                </h3>
-                
-                {shop.products.map((product:ShoppingCartProduct, productIdx) => (
-                  <div key={product.id} className="flex mt-8" >
+              <ul
+                role="list"
+                className="divide-y divide-gray-200 border-b border-t border-gray-200"
+              >
+                {cartShops.map((shop) => (
+                  <li key={shop.id} className="py-6 sm:py-10 mt-8">
+                    <h3 
+                      className="text-md font-medium text-gray-900"
+                    >
+                      <Link to={`/shop/${shop.id}`}>
+                        {shop.name}
+                      </Link>
+                    </h3>
                     
-                    <input type="hidden" name={`product[${productIdx}][id]`} defaultValue={product.id} />
-                    <input type="hidden" name={`product[${productIdx}][users_id]`} defaultValue={product.users_id} />
-                    <input type="hidden" name={`product[${productIdx}][modelo]`} defaultValue={product.modelo} />
-                    <input type="hidden" name={``} defaultValue={product.quantity} />
-                    <div className="flex-shrink-0">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="h-24 w-24 rounded-md object-cover object-center sm:h-48 sm:w-48"
-                      />
-                    </div>
-
-                    <div className="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
-                      <div className="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
-                        <div>
-                          <div className="flex justify-between">
-                            <h3 className="text-sm">
-                              <Link
-                                to={`/product/${product.id}`}
-                                className="font-medium text-gray-700 hover:text-gray-800"
-                              >
-                                {product.name}
-                              </Link>
-                            </h3>
-                          </div>
-                          <div className="mt-1 flex text-sm">
-                            <p className="text-gray-500">{'product.color'}</p>
-                            {/* {product.size ? (
-                              <p className="ml-4 border-l border-gray-200 pl-4 text-gray-500">
-                                {product.size}
-                              </p>
-                            ) : null} */}
-                          </div>
-                          <p className="mt-1 text-sm font-medium text-gray-900">
-                            {product.price}
-                          </p>
+                    {shop.products.map((product:ShoppingCartProduct, productIdx) => (
+                      <div key={product.id} className="flex mt-8" >
+                        
+                        <input type="hidden" name={`shops[${shop.id}][products][id]`} defaultValue={product.id} />
+                        <input type="hidden" name={`shops[${shop.id}][products][users_id]`} defaultValue={product.users_id} />
+                        <input type="hidden" name={`shops[${shop.id}][products][modelo]`} defaultValue={product.modelo} />
+                        <input type="hidden" name={``} defaultValue={product.quantity} />
+                        <div className="flex-shrink-0">
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="h-24 w-24 rounded-md object-cover object-center sm:h-48 sm:w-48"
+                          />
                         </div>
 
-                        <div className="mt-4 sm:mt-0 sm:pr-9">
-                          <label
-                            htmlFor={`product[${productIdx}][quantity]`}
-                            className="sr-only"
-                          >
-                            Cantidad, {product.name}
-                          </label>
-                          <select
-                            id={`product[${productIdx}][quantity]`}
-                            name={`product[${productIdx}][quantity]`}
-                            defaultValue={product.quantity}
-                            onChange={event => handleProductQuantityChange(product, event)}
-                            className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
-                          >{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((_, index) => (
-                            <option 
-                              value={index}
-                              key={index}
-                            >{index}</option>
-                          ))}
-                          </select>
+                        <div className="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
+                          <div className="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
+                            <div>
+                              <div className="flex justify-between">
+                                <h3 className="text-sm">
+                                  <Link
+                                    to={`/product/${product.id}`}
+                                    className="font-medium text-gray-700 hover:text-gray-800"
+                                  >
+                                    {product.name}
+                                  </Link>
+                                </h3>
+                              </div>
+                              <div className="mt-1 flex text-sm">
+                                <p className="text-gray-500">{'product.color'}</p>
+                                {/* {product.size ? (
+                                  <p className="ml-4 border-l border-gray-200 pl-4 text-gray-500">
+                                    {product.size}
+                                  </p>
+                                ) : null} */}
+                              </div>
+                              <p className="mt-1 text-sm font-medium text-gray-900">
+                                {product.price}
+                              </p>
+                            </div>
 
-                          <div className="absolute right-0 top-0">
-                            <button
-                              type="button"
-                              onClick={() => handleProductRemove(product)}
-                              className="-m-2 inline-flex p-2 text-gray-400 hover:text-gray-500"
-                            >
-                              <span className="sr-only">Eliminar</span>
-                              <XMarkIconMini
-                                className="h-5 w-5"
+                            <div className="mt-4 sm:mt-0 sm:pr-9">
+                              <label
+                                htmlFor={`shops[${shop.id}][products][quantity]`}
+                                className="sr-only"
+                              >
+                                Cantidad, {product.name}
+                              </label>
+                              <select
+                                id={`shops[${shop.id}][products][quantity]`}
+                                name={`shops[${shop.id}][products][quantity]`}
+                                defaultValue={product.quantity}
+                                onChange={event => handleProductQuantityChange(product, event)}
+                                className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                              >{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((_, index) => (
+                                <option 
+                                  value={index}
+                                  key={index}
+                                >{index}</option>
+                              ))}
+                              </select>
+
+                              <div className="absolute right-0 top-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleProductRemove(product)}
+                                  className="-m-2 inline-flex p-2 text-gray-400 hover:text-gray-500"
+                                >
+                                  <span className="sr-only">Eliminar</span>
+                                  <XMarkIconMini
+                                    className="h-5 w-5"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="mt-4 flex space-x-2 text-sm text-gray-700">
+                            {product?.stock ? (
+                              <CheckIcon
+                                className="h-5 w-5 flex-shrink-0 text-green-500"
                                 aria-hidden="true"
                               />
-                            </button>
-                          </div>
+                            ) : (
+                              <ClockIcon
+                                className="h-5 w-5 flex-shrink-0 text-gray-300"
+                                aria-hidden="true"
+                              />
+                            )}
+
+                            <span>
+                              {product?.stock
+                                ? "In stock"
+                                : `Ships in ${'product.leadTime'}`}
+                            </span>
+                          </p>
                         </div>
                       </div>
-
-                      <p className="mt-4 flex space-x-2 text-sm text-gray-700">
-                        {product?.stock ? (
-                          <CheckIcon
-                            className="h-5 w-5 flex-shrink-0 text-green-500"
-                            aria-hidden="true"
-                          />
-                        ) : (
-                          <ClockIcon
-                            className="h-5 w-5 flex-shrink-0 text-gray-300"
-                            aria-hidden="true"
-                          />
-                        )}
-
-                        <span>
-                          {product?.stock
-                            ? "In stock"
-                            : `Ships in ${'product.leadTime'}`}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
+                    ))}
+                  </li>
                 ))}
-              </li>
-            ))}
-          </ul>
+              </ul>
+            </>
+          )}
         </section>
 
         {/* Order summary */}
@@ -332,6 +333,7 @@ export default function ShoppingCart() {
           <div className="mt-6">
             <button
               type="submit"
+              disabled={cartShops.length === 0}
               className="w-full rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
             >
               Continuar
