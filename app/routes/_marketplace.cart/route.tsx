@@ -18,6 +18,7 @@ import getEnv from "get-env";
 import Fetcher from "~/utils/fetcher";
 import {useShoppingCart} from '~/providers/ShoppingCartContext';
 
+
 const relatedProducts = [
   {
     id: 1,
@@ -32,11 +33,12 @@ const relatedProducts = [
   // More products...
 ];
 
+
 export async function action({
   request,
 }: ActionFunctionArgs):Promise<{
   cart: ShoppingCartType | {}
-}> {
+}>{ 
   const formData = await request.formData();
   const formAction = formData.get('action');
   
@@ -73,7 +75,8 @@ export async function action({
       break;
 
     default:
-      break;
+      console.log('Continue to shipping step');
+      throw redirect('/checkout/shipping');
   }
 
   // Return data
@@ -286,6 +289,8 @@ export default function ShoppingCart() {
               <dt className="text-sm text-gray-600">Compra</dt>
               <dd className="text-sm font-medium text-gray-900">${ShoppingCartInstance.getSubtotal()}</dd>
             </div>
+
+            {/*
             <div className="flex items-center justify-between border-t border-gray-200 pt-4">
               <dt className="flex items-center text-sm text-gray-600">
                 <span>Costo de envío</span>
@@ -304,7 +309,7 @@ export default function ShoppingCart() {
               </dt>
               <dd className="text-sm font-medium text-gray-900">${ShoppingCartInstance.getShippingCost()}</dd>
             </div>
-            {/* <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between border-t border-gray-200 pt-4">
               <dt className="flex text-sm text-gray-600">
                 <span>Tax estimate</span>
                 <a
@@ -321,12 +326,14 @@ export default function ShoppingCart() {
                 </a>
               </dt>
               <dd className="text-sm font-medium text-gray-900">$8.32</dd>
-            </div> */}
+            </div> 
+            */}
+
             <div className="flex items-center justify-between border-t border-gray-200 pt-4">
               <dt className="text-base font-medium text-gray-900">
-                Total
+                Subtotal
               </dt>
-              <dd className="text-base font-medium text-gray-900">${ShoppingCartInstance.getTotal()}</dd>
+              <dd className="text-base font-medium text-gray-900">${ShoppingCartInstance.getSubtotal()}</dd>
             </div>
           </dl>
 
