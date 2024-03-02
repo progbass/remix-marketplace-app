@@ -1,19 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import {
-  Link,
-  Form,
   useLoaderData,
-  useNavigate,
   useActionData,
   useOutletContext
 } from "@remix-run/react";
 import { redirect } from "@remix-run/node";
-import stripe from "stripe";
-import { loadStripe } from "@stripe/stripe-js";
 import {
-  PaymentElement,
-  Elements,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
@@ -33,7 +26,6 @@ import ShippingForm from "./ShippingForm";
 import ReviewForm from "./ReviewForm";
 import ThankYou from "./ThankYou";
 import ShoppingCart from "~/utils/ShoppingCart";
-import { useFetcherConfiguration } from "~/providers/FetcherConfigurationContext";
 import DialogOverlay from "~/components/DialogOverlay";
 import { useFetcher } from "react-router-dom";
 
@@ -43,26 +35,69 @@ const STRIPE_REDIRECT_URL = "http://localhost:3000/purchase";
 //
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const cartStep = params.step;
-  let CartStepForm = ShippingForm;
 
+  // Config custom data fetcher
   const fetcher = new Fetcher(null, request);
 
+  // Fetch the shopping cart
+  const shoppingCart = await fetcher.fetch(`${getEnv().API_URL}/cart`, {
+    method: "GET",
+  });  
+  let shippingQuotes = [];
+
+  // If the shopping cart is empty, redirect to the cart page
+  if (shoppingCart.cart.length === 0) {
+    return redirect("/cart");
+  }
+
+  // If there's no shipping address information, redirect to the shipping page
+  if (cartStep === "review" && !shoppingCart.shipping) {
+    return redirect("/checkout/shipping");
+  }
+
+  // Control behavior based on the current cart/checkout step
   switch (cartStep) {
     case "shipping":
-      const shoppingCart = await fetcher.fetch(`${getEnv().API_URL}/cart`, {
-        method: "GET",
-      });
       console.log("loading shipping step ", shoppingCart);
       break;
     case "review":
-      console.log("loading review step");
-      // return redirect("/checkout/thank-you");
+      console.log("loading review step ", shoppingCart);
+      const ShoppingCartInstance = new ShoppingCart(shoppingCart);
+
+      // Define necessary data to request shipping quotes
+      const formData = new FormData();
+      formData.append("user[name]", shoppingCart.shipping.name);
+      formData.append("user[lastname]", shoppingCart.shipping.lastname);
+      formData.append("user[email]", shoppingCart.shipping.email);
+      formData.append("user[phone]", shoppingCart.shipping.phone);
+      formData.append("user[street]", shoppingCart.shipping.street);
+      formData.append("user[num_ext]", shoppingCart.shipping.num_ext);
+      formData.append("user[num_int]", shoppingCart.shipping.num_int);
+      formData.append("user[town_id]", shoppingCart.shipping.town_id);
+      formData.append("user[state_id]", shoppingCart.shipping.state_id);
+      formData.append("user[zipcode]", shoppingCart.shipping.zipcode);
+      formData.append("user[neighborhood]", shoppingCart.shipping.neighborhood);
+      formData.append("products", JSON.stringify(ShoppingCartInstance.getProducts()));
+
+      // Get shipping quotes
+      const shippingQuotesResponse = await fetcher
+        .fetch(`${getEnv().API_URL}/distance`, {
+          method: "POST",
+          body: formData,
+        })
+        .catch((error) => {
+          console.log("error getting shipping quotes ", error);
+          // throw new Error("Error fetching distance data");
+          return;
+        });
+        shippingQuotes = shippingQuotesResponse;
       break;
+
     default:
     // return redirect("/cart");
   }
 
-  // States
+  // Get the states list
   const statesResponse = await fetcher
     .fetch(`${getEnv().API_URL}/states`, {})
     .catch((error) => {
@@ -74,6 +109,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   return {
     statesList: statesResponse,
     cartStep,
+    shippingQuotes
   };
 }
 
@@ -86,23 +122,23 @@ type ActionErrors = {
       }
     | undefined;
 };
-export let action: ActionFunction = async ({ request }) => {
+export let action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
-  const cartStep = formData.get("step");
   let errors: ActionErrors = {};
-  console.log("params ", cartStep);
 
   //log all form values
   for (var pair of formData.entries()) {
     console.log(pair[0] + ", " + pair[1]);
   }
 
-  //
+  // Create a new fetcher instance
   const fetcher = new Fetcher(null, request);
 
-  //
+  // Handle the form actions
+  const cartStep = formData.get("step");
   switch (cartStep) {
     case "shipping":
+      // Update shipping details in the cart
       const updatedCart = await fetcher
         .fetch(`${getEnv().API_URL}/cart/shipping`, {
           method: "POST",
@@ -117,9 +153,30 @@ export let action: ActionFunction = async ({ request }) => {
           });
         });
 
+      // Redirect users to the review page
       console.log("Updated shipping details ", updatedCart);
       return redirect("/checkout/review");
-      break;
+
+    case "setShippingMethod":
+      // Set shipping method
+      const shippingMethod = await fetcher
+        .fetch(`${getEnv().API_URL}/cart`, {
+          method: "POST",
+          body: formData,
+        })
+        .catch((error) => {
+          console.log("error", error);
+          return (errors.shipping_error = {
+            message: "Error updating cart",
+            type: "shipping_error",
+            error: error,
+          });
+        });
+
+      // Return data
+      console.log("Updated shipping method ", shippingMethod);
+      return null;
+      
     case "review":
       // Process payment
       const orderPayment = await fetcher
@@ -136,25 +193,12 @@ export let action: ActionFunction = async ({ request }) => {
           });
         });
 
-      // Check if payment was successful
-      // if (orderPayment?.type == "success") {
-      //   return redirect("/checkout/thank-you");
-      // }
-
+      // Return data
       return {
         step: "review",
         errors,
         order: orderPayment,
       }
-
-      // Collect payment errors
-      errors.payment_error = {
-        message: orderPayment.message,
-        type: "payment_error",
-      };
-
-      // Exit handler
-      break;
 
     default:
     // return redirect("/cart");
@@ -171,13 +215,20 @@ export let action: ActionFunction = async ({ request }) => {
 
 //
 export default function CheckoutPage() {
+  const formReference = useRef(null);
+
+  // Loader data
+  const { cartStep, statesList, shippingQuotes } = useLoaderData<typeof loader>();
+
+  // Form fetcher
   const checkoutForm = useFetcher();
+
+  // Stripe Elements
   const stripe = useStripe();
-  // stripe?.retrievePaymentIntent()
   const myValue = useOutletContext();
   const paymentId = myValue;
-  console.log("paymentIntent", paymentId);
   const elements = useElements();
+
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -196,19 +247,9 @@ export default function CheckoutPage() {
     }
   }, [actionData?.errors.payment_error]);
 
-  // Loader data
-  const { cartStep, statesList } = useLoaderData<typeof loader>();
-
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
-  const [cartProducts, setCartProducts] = useState<ShoppingCartShop[]>(
-    ShoppingCartInstance.getCart().cart || []
-  );
-
-  // Update the local state when the ShoppingCartInstance changes
-  useEffect(() => {
-    setCartProducts(ShoppingCartInstance.getCart().cart);
-  }, [ShoppingCartInstance]);
+  ShoppingCartInstance.setShippingQuotes(shippingQuotes?.deliveries || []);
 
   // Determine corresponding UI form
   let CartStepForm = ShippingForm;
@@ -281,12 +322,12 @@ export default function CheckoutPage() {
       && checkoutForm.data?.order.type == "success"
     ){
       // Confirm stripe payment
-      handleConfirmPayment(checkoutForm.data?.order);
+      handlePaymentConfirmation(checkoutForm.data?.order);
     }
   } , [checkoutForm]);
 
   // Confirm payment
-  const handleConfirmPayment = async (order) => {
+  const handlePaymentConfirmation = async (order) => {
     setIsLoading(true);
 
     const { error } = await stripe.confirmPayment({
@@ -314,10 +355,12 @@ export default function CheckoutPage() {
   // Render component
   return (
     <>
+      {/* Checkout Step */}
       {cartStep === "thank-you" ? (
         <ThankYou />
       ) : (
         <checkoutForm.Form
+          ref={formReference}
           method="post"
           onSubmit={handleSubmit}
           className="relative mx-auto grid max-w-7xl grid-cols-1 gap-x-16 lg:grid-cols-2 px-8 xl:gap-x-48"
@@ -325,36 +368,21 @@ export default function CheckoutPage() {
           <input type="hidden" name="step" defaultValue={cartStep} />
           <input type="hidden" name="order[payment_intent_id]" defaultValue={paymentId || ''} />
 
-          {
-            // Include all products in the cart as hidden inputs
-            ShoppingCartInstance.getCart().cart.map((shop) => {
-              return shop.products.map((product, prodIndx) => {
-                return Array.from(Object.keys(product)).map(
-                  (keyName: string) => {
-                    return (
-                      <input
-                        type="hidden"
-                        name={`products[${prodIndx}][${keyName}]`}
-                        value={product[keyName]}
-                      />
-                    );
-                  }
-                );
-              });
-            })
-          }
-
           <div>
             <CartStepForm addressStatesList={statesList} />
           </div>
+
           <OrderSummary
             cartStep={cartStep}
+            checkoutForm={checkoutForm}
+            checkoutFormRef={formReference}
             onProductRemove={handleProductRemove}
             onProductQuantityChange={handleProductQuantityChange}
           />
         </checkoutForm.Form>
       )}
 
+      {/* Error Modal */}
       {errorModalDisplay && (
         <DialogOverlay
           title="Error"
