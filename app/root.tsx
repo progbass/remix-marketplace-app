@@ -34,7 +34,7 @@ import authenticator from "~/services/auth.server";
 import { FetcherConfigurationProvider } from "~/providers/FetcherConfigurationContext";
 import { ShoppingCartProvider } from "~/providers/ShoppingCartContext";
 import { Fetcher } from "~/utils/fetcher";
-import setCookie from "set-cookie-parser";
+import CookieUtils from "set-cookie-parser";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
@@ -47,7 +47,7 @@ const searchClient = algoliasearch(
 );
 
 // LOADER FUNCTION
-export const loader: LoaderFunction = async ({ request, response }) => {
+export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => {
   // If the user is already authenticated redirect to /dashboard directly
   const user = (await AuthService.isAuthenticated(request)) || null;
   let session = await getSession(request.headers.get("cookie"));
@@ -61,22 +61,24 @@ export const loader: LoaderFunction = async ({ request, response }) => {
     const cookieResponse = await fetch(
       `${getEnv().API_URL}/sanctum/csrf-cookie`
     );
-    const cookieHeader = cookieResponse.headers.get("Set-Cookie");
 
+    // Parse the cookies from the response and put them into an array
+    const cookieHeader = cookieResponse.headers.get("Set-Cookie") || undefined;
     var splitCookieHeaders: Array<any> =
-      setCookie.splitCookiesString(cookieHeader);
-    var cookies: Array<any> = setCookie.parse(splitCookieHeaders);
+      CookieUtils.splitCookiesString(cookieHeader);
+    var cookies: Array<any> = CookieUtils.parse(splitCookieHeaders);
 
-    // Search for the getEnv().API_SESSION_NAME cookie
+    // Search for the getEnv().API_SESSION_NAME cookie 
+    // (Note: this needs to be the same as the API server's session name)
     const sessionCookie = cookies.find(
       (cookie) => cookie.name === getEnv().API_SESSION_NAME
     );
     const xsrfCookie = cookies.find((cookie) => cookie.name === "XSRF-TOKEN");
 
     // Save the sessionId in the session
-    session.set(getEnv().API_SESSION_NAME, sessionCookie.value);
+    session.set(getEnv().API_SESSION_NAME, sessionCookie?.value);
     session.set("XSRF-TOKEN", xsrfCookie.value);
-    session.set(authenticator.sessionKey, xsrfCookie.value);
+    session.set(authenticator.sessionKey, xsrfCookie?.value);
 
     // commit the session and add the auth cookies to the response
     headers = new Headers({
@@ -85,19 +87,19 @@ export const loader: LoaderFunction = async ({ request, response }) => {
     headers.append(
       "Set-Cookie",
       `${getEnv().API_SESSION_NAME}=${
-        sessionCookie.value
+        sessionCookie?.value
       }; path=/; samesite=lax; SameSite=None; Secure`
     );
     headers.append(
       "Set-Cookie",
-      `XSRF-TOKEN=${xsrfCookie.value}; path=/; samesite=lax; SameSite=None; Secure`
+      `XSRF-TOKEN=${xsrfCookie?.value}; path=/; samesite=lax; SameSite=None; Secure`
     );
   }
 
   // Algolia InstantSearch SSR
   const serverUrl = request.url;
   const serverState = await getServerState(
-    <TestFunction serverUrl={serverUrl} />,
+    <InstanteSearchProvider serverUrl={serverUrl} />,
     {
       renderToString,
     }
@@ -116,7 +118,7 @@ export const loader: LoaderFunction = async ({ request, response }) => {
       console.log(err);
     });
     
-  // Return the loader data
+  // Return the loader data including headers
   return json(
     {
       user: user,
@@ -138,7 +140,9 @@ type PageProps = {
   serverUrl: string;
   children?: React.ReactNode;
 };
-function TestFunction({ serverState, serverUrl, children }: PageProps) {
+
+// Instant Search Provider
+function InstanteSearchProvider({ serverState, serverUrl, children }: PageProps) {
   return (
     <InstantSearchSSRProvider {...serverState}>
       <InstantSearch
@@ -167,11 +171,11 @@ export default function App() {
   const { ENV_VARS, user, serverState, serverUrl, shoppingCartItems } =
     useLoaderData<typeof loader>();
 
-  //
+  // Configure the fetcher
   const fetcher = new Fetcher(user ? user.token : null);
 
-  //
-  const cartItems = shoppingCartItems || [];
+  // Set the shopping cart items
+  const shoppingCart = shoppingCartItems;
 
   //
   return (
@@ -193,11 +197,11 @@ export default function App() {
       </head>
       <body className="h-full">
         <FetcherConfigurationProvider fetcher={fetcher}>
-          <TestFunction serverState={serverState} serverUrl={serverUrl}>
-            <ShoppingCartProvider items={cartItems}>
+          <InstanteSearchProvider serverState={serverState} serverUrl={serverUrl}>
+            <ShoppingCartProvider items={shoppingCart}>
               <Outlet />
             </ShoppingCartProvider>
-          </TestFunction>
+          </InstanteSearchProvider>
           <ScrollRestoration />
           <Scripts />
           <LiveReload />
