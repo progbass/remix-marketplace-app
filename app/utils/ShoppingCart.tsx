@@ -40,7 +40,7 @@ export type ShoppingCartShop = {
   products: ShoppingCartProduct[];
   unavailableProducts: ShoppingCartProduct[];
   location: string;
-  shippingQuotes: ShippingQuote[];
+  shippingQuote: ShippingQuote | null | undefined;
   selectedShippingMethod: ShippingMethod | null;
   timestamp: string | null;
 };
@@ -111,6 +111,7 @@ class ShoppingCart {
   private products: ShoppingCartProduct[] = [];
   private cart: ShoppingCartShop[] = [];
   private shipping: ShippingInformation = defaultShipping;
+  public timestamp: Date = new Date();
 
   /**
    * Constructs a new instance of the ShoppingCart class.
@@ -120,35 +121,45 @@ class ShoppingCart {
     cart: [],
     shipping: defaultShipping,
   }) {
+    console.log("this.cart asd asd", cart);
+    this.initCart(cart, false);
+  }
+
+  public setCart(cart: ShoppingCartType, notifySubscribers = true): void {
+    this.initCart(cart, notifySubscribers);
+  }
+
+  protected initCart(cart: ShoppingCartType, notifySubscribers = true): void {
+
+
     this.shipping = cart?.shipping
       ? this.formatShippingAddress(cart?.shipping)
       : this.formatShippingAddress(defaultShipping);
     this.cart = this.reduceShops(cart?.cart || []);
-  }
+    console.log("this.cart", this.cart);
+    // console.log("this.shipping", this.shipping);
 
-  public setCart(cart: ShoppingCartType): void {
-    this.initCart(cart);
-  }
-
-  protected initCart(cart: ShoppingCartType): void {
-    this.shipping = cart?.shipping
-      ? this.formatShippingAddress(cart?.shipping)
-      : this.formatShippingAddress(defaultShipping);
-    this.cart = this.reduceShops(cart?.cart || []);
-    this.notifySubscribers();
+    if (notifySubscribers) {
+      console.log("notifySubscribers");
+      this.notifySubscribers();
+    }
   }
 
   public subscribe(
     callback: Function
   ): Function {
-    this.subscribers.push(callback);
+    this.subscribers = [
+      ...this.subscribers,
+      callback
+    ];
+
     // Return unsubscribe function
     return () => {
       this.subscribers = this.subscribers.filter(subscriber => subscriber !== callback);
     };
   }
   private async notifySubscribers(): Promise<void> {
-    const reference = this.getCart();
+    const reference = this.buildShoppingCartObject();
     // this.setState 
     //   && this.setState(this);
     this.subscribers.forEach(subscriber => subscriber(reference));
@@ -161,34 +172,60 @@ class ShoppingCart {
     const reducedCart = products.reduce((acc, product) => {
       const existingProduct = acc.find((p) => p.id === product.id);
       if (existingProduct) {
-        existingProduct.quantity += product.quantity;
-      } else {
-        acc.push(this.getFormattedProduct(product));
-      }
-      return acc;
+        return [
+          ...acc.filter((p) => p.id !== existingProduct.id),
+          {
+            ...existingProduct,
+            quantity: existingProduct.quantity + product.quantity,
+          },
+        ]
+      } 
+
+      //
+      return [
+        ...acc,
+        this.getFormattedProduct(product)
+      ];
     }, [] as ShoppingCartProduct[]);
 
     return reducedCart;
   }
 
   private reduceShops(shops: ShoppingCartShop[]): ShoppingCartShop[] {
-    // Reduce all products with the same id into a single object
-    const reducedShops = shops.reduce((acc, shop) => {
-      const existingShop = acc.find((s) => s.id === shop.id);
+    // Create a deep copy of the shops array
+    const copiedShops = JSON.parse(JSON.stringify(shops));
+
+    // Reduce all shops with the same id into a single object
+    const reducedShops = copiedShops.reduce((acc:Array<ShoppingCartShop>, shop:ShoppingCartShop) => {
+      const existingShop = acc.find((s:ShoppingCartShop) => s.id === shop.id);
       if (existingShop) {
-        existingShop.products = this.reduceProducts([
-          ...existingShop.products,
-          ...shop.products,
-        ]);
-      } else {
-        acc.push({
+        return [
+          ...acc.filter((s:ShoppingCartShop) => s.id !== existingShop.id),
+          {
+            ...existingShop,
+            products: this.reduceProducts([
+              ...existingShop.products,
+              ...shop.products,
+            ]),
+          }
+        ]
+      } 
+
+      //
+      console.log("here shop have the expected values ---> ", shop);
+      const test = [
+        ...acc,
+        {
           ...shop,
           products: this.reduceProducts(shop.products),
-        });
-      }
-      return acc;
+          selectedShippingMethod: shop.selectedShippingMethod || null,
+          // selectedShippingMethod2: shop.selectedShippingMethod || null,
+        }
+      ];
+      console.log("Problem here!: acc have the shop values of the last instance ---> ", test);
+      return test;
+      
     }, [] as ShoppingCartShop[]);
-
     return reducedShops;
   }
 
@@ -245,7 +282,7 @@ class ShoppingCart {
           location: "",
           products: [formattedProduct],
           unavailableProducts: [],
-          shippingQuotes: [],
+          shippingQuote: null,
           selectedShippingMethod: null,
           timestamp: new Date().toISOString(),
         },
@@ -341,7 +378,7 @@ class ShoppingCart {
     shop.products = shop.products.filter((p) => p.id !== product.id);
     this.cart = [...this.cart.filter((s) => s.id !== shop.id)];
     if (shop.products) {
-      this.cart.push(shop);
+      this.cart = [...this.cart, shop];
     }
 
     // Update state callback
@@ -352,8 +389,6 @@ class ShoppingCart {
   }
 
   private buildShoppingCartObject = (): ShoppingCartType => {
-    console.log("this.cart", this.cart);
-    console.log("this.shipping", this.shipping);
     return {
       cart: this.cart,
       shipping: this.shipping,
@@ -408,7 +443,14 @@ class ShoppingCart {
    * @returns The products in the shopping cart.
    */
   public getProducts(): ShoppingCartProduct[] {
-    return this.products;
+    // Reduce all products with the same id into a single object
+    return this.cart.reduce((acc:Array<ShoppingCartProduct>, shop:ShoppingCartShop) => {
+      const shopProducts = shop.products;
+      return [
+        ...acc,
+        ...shopProducts
+      ]
+    }, [] as ShoppingCartProduct[]);
   }
 
   /**
@@ -532,12 +574,13 @@ class ShoppingCart {
 
     // Find the matching shop and add the shipping quotes
     this.cart = this.cart.map((shop) => {
-      const matchingQuote = sortedQuotes.find(
+      const matchingQuotes:ShippingQuote | undefined = sortedQuotes.find(
         (quote: any) => quote.to_users_id === shop.id
       );
-      if (matchingQuote) {
-        shop.shippingQuotes = [matchingQuote] || [];
-        shop.selectedShippingMethod = matchingQuote.deliveries[0] || null;
+      if (matchingQuotes) {
+        shop.shippingQuote = matchingQuotes || null;
+        shop.selectedShippingMethod = shop.selectedShippingMethod 
+          ? shop.selectedShippingMethod : matchingQuotes.deliveries[0];
       }
       return shop;
     });
@@ -567,7 +610,7 @@ class ShoppingCart {
     }
 
     // Find the matching shop and add the selected shipping method
-    const shop = this.cart.find((s) => s.id === shopId);
+    const shop = this.cart.find((s:ShoppingCartShop) => s.id === shopId);
     if (!shop) {
       throw new Error("Shop ID not found in the shopping cart");
     }
@@ -576,6 +619,8 @@ class ShoppingCart {
     // Update the shop in the cart
     this.cart = this.cart.filter((s) => s.id !== shop.id);
     this.cart = [...this.cart, shop];
+
+    console.log('!!!!!!! cart ', this.cart);
 
     // Update state callback
     this.notifySubscribers();
@@ -589,13 +634,15 @@ class ShoppingCart {
    * @returns The empty shopping cart.
    * @throws {Error} If the shopping cart is not available.
    */
-  public clear(): ShoppingCartType {
+  public clear(notifySubscribers = true): ShoppingCartType {
     // Clear the shopping cart
     this.cart = [];
     this.shipping = defaultShipping;
 
     // Update state callback
-    this.notifySubscribers();
+    if(notifySubscribers){
+      this.notifySubscribers();
+    }
 
     // Remove all sobscribers
     this.subscribers = [];
