@@ -1,4 +1,4 @@
-import { Link, useLoaderData, useFetcher, useActionData } from "@remix-run/react";
+import { Link, useLoaderData, useFetcher } from "@remix-run/react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Fragment, useState, useEffect } from "react";
@@ -7,15 +7,10 @@ import { StarIcon } from "@heroicons/react/20/solid";
 
 import type { ProductVariation } from "~/types/ProductVariation";
 import type { Product } from "~/types/Product";
-import type {
-  ShoppingCartProduct,
-  ShoppingCartShop,
-} from "~/utils/ShoppingCart";
 
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import classNames from "~/utils/classNames";
 import AuthService from "~/services/Auth.service";
-import { sessionStorage, getSession, commitSession } from "~/services/session.server";
 import getEnv from "get-env";
 import { Fetcher } from "~/utils/fetcher";
 import SelectBox from "~/components/SelectBox";
@@ -108,20 +103,6 @@ const license = {
       </ul>
     `,
 };
-const relatedProducts = [
-  {
-    id: 1,
-    name: "Fusion",
-    category: "UI Kit",
-    href: "#",
-    price: "$49",
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/product-page-05-related-product-01.jpg",
-    imageAlt:
-      "Payment application dashboard screenshot with transaction table, financial highlights, and main clients on colorful purple background.",
-  },
-  // More products...
-];
 
 export async function loader ({ request, params }: LoaderFunctionArgs) {
   // Attempt to get the user from the session
@@ -131,7 +112,7 @@ export async function loader ({ request, params }: LoaderFunctionArgs) {
   });
 
   // Create sercer-side fetcher
-  const myFetcher = new Fetcher(user?.token);
+  const myFetcher = new Fetcher(user?.token, request);
 
   // Get product
   let error = null;
@@ -143,11 +124,12 @@ export async function loader ({ request, params }: LoaderFunctionArgs) {
       error = null;
     });
 
+  // Return 404 if product not found
   if (error || !productDetails) {
     return redirect("404", 404);
   }
 
-  // get related products
+  // Get related products
   const relatedProducts = await myFetcher
     .fetch(`${getEnv().API_URL}/products/related/${params.productId}`, {
       method: "GET",
@@ -158,6 +140,7 @@ export async function loader ({ request, params }: LoaderFunctionArgs) {
       error = null;
     });
 
+  // Return loader data
   return {
     cart: {
       products: [],
@@ -166,7 +149,7 @@ export async function loader ({ request, params }: LoaderFunctionArgs) {
     relatedProducts: relatedProducts || [],
   };
 }
-export async function action ({ request }) {
+export async function action ({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const action = formData.get("action");
 
@@ -179,7 +162,7 @@ export async function action ({ request }) {
         formValues[key] = value;
       });
 
-      //
+      // Update shopping cart
       const myFetcher = new Fetcher(null, request);
       const shoppingCartItems = await myFetcher
         .fetch(`${getEnv().API_URL}/cart/add`, 
@@ -191,86 +174,54 @@ export async function action ({ request }) {
           console.log(err);
         });
 
-      console.log("product added to cart: ", shoppingCartItems);
-      return {
+      // Return response
+      return json({
         errors: null,
-        cart: shoppingCartItems?.cart
-      }
-      break;
+        cart: shoppingCartItems
+      });
     }
+
+    // Handle other actions
     default: {
       throw new Response("Bad Request", { status: 400 });
     }
   }
-
-  // Return response
-  return json({ success: true });
 };
 
 export default function ProductPage() {
   // Shopping cart
   const ShoppingCart = useShoppingCart();
-  const [cart, setCart] = useState<ShoppingCartShop[]>(
-    ShoppingCart.getCart().shops || []
-  );
 
-  //
-  const addToCartForm = useFetcher({ key: "add-to-bag" });
+  // Add-To-Cart Form
+  const addToCartForm = useFetcher<typeof action>();
+  // Update shopping cart when form has changed
   useEffect(() => {
     if (
-      cart &&
       addToCartForm.state === "idle" &&
       addToCartForm.data
     ) {
-      console.log('cart ', addToCartForm.data);
-      ShoppingCart.setCart({ cart: addToCartForm.data.cart?.items || [], shipping: addToCartForm.data.cart?.shipping });
+      ShoppingCart.setCart(addToCartForm.data.cart);
     }
-  }, [cart, addToCartForm]);
+  }, [addToCartForm]);
   
   // Product details
   const { product: productDetails, relatedProducts } =
     useLoaderData<typeof loader>();
-  const product: Product = { ...productBase, ...productDetails };
-
-  // Submit form
-  async function handleSyncAddToCart(event: React.FormEvent<HTMLFormElement>) {
-    // event.preventDefault();
-
-
-    return;
-    const formData = new FormData(event.target);
-    const formValues = {};
-    formData.forEach((value, key) => {
-      formValues[key] = value;
-    });
-
-    //
-    const shoppingCartProduct: ShoppingCartProduct = {
-      id: product.id,
-      name: product.name,
-      image: product?.gallery[0] || undefined,
-      users_id: product.users_id,
-      price: product.price,
-      activateDiscount: product.activate_discount,
-      discount: product.discount,
-      hasFreeShipping: false,
-      brand: product.entrepreneur,
-      quantity: parseInt(formData.get("quantity") as string),
-    };
-
-    //
-    await ShoppingCart.addToCart(shoppingCartProduct);
-    setCart(ShoppingCart.getCart());
-  }
+  const product: Product = { ...productDetails };
 
   // Form state
+  const maxStockItems = productDetails.stock;
+  let stockSelectboxOptionsList = [];
+  for (let i = 1; i <= maxStockItems; i++) {
+    stockSelectboxOptionsList.push({ id: i, name: i.toString() });
+  }
+  stockSelectboxOptionsList = stockSelectboxOptionsList.slice(0, 10);
   const [selectedQuantity, setSelectedQuantity] = useState<{
-    id: number | string;
+    id: string | number | null;
     name: string;
   }>({ id: 1, name: "1" });
 
-  console.log('actionData ', addToCartForm.data);
-
+  // Return main component
   return (
     <div className="mx-auto px-4 pb-24 pt-14 sm:px-6 sm:pb-32 sm:pt-16 lg:max-w-7xl lg:px-8">
       {/* Product */}
@@ -279,7 +230,7 @@ export default function ProductPage() {
         <div className="lg:col-span-4 lg:row-end-1">
           <div className="aspect-h-3 aspect-w-4 overflow-hidden rounded-lg bg-gray-100">
             <img
-              src={product?.gallery[0] || undefined}
+              src={product?.gallery ? product?.gallery[0] : undefined}
               alt={product.name}
               className="object-cover object-center"
             />
@@ -325,7 +276,7 @@ export default function ProductPage() {
           <p className="mt-6 text-gray-500">{product.short_description}</p>
 
           <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-            <addToCartForm.Form method="post" onSubmit={handleSyncAddToCart}>
+            <addToCartForm.Form method="post" >
               <input
                 type="hidden"
                 name="id"
@@ -342,13 +293,7 @@ export default function ProductPage() {
                   label="Cantidad"
                   value={selectedQuantity}
                   onChange={setSelectedQuantity}
-                  optionsList={[
-                    { id: "1", name: "1" },
-                    { id: "2", name: "2" },
-                    { id: "3", name: "3" },
-                    { id: "4", name: "4" },
-                    { id: "5", name: "5" },
-                  ]}
+                  optionsList={stockSelectboxOptionsList}
                 />
                 <input
                   type="hidden"
@@ -611,7 +556,7 @@ export default function ProductPage() {
           </a>
         </div>
         <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2 sm:gap-y-10 lg:grid-cols-4">
-          {relatedProducts.map((product) => (
+          {relatedProducts.map((product:Product) => (
             <div key={product.id} className="group relative">
               <div className="aspect-h-3 aspect-w-4 overflow-hidden rounded-lg bg-gray-100">
                 <img
