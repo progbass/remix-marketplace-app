@@ -46,12 +46,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   let shippingQuotes = [];
 
   // If the shopping cart is empty, redirect to the cart page
-  if (shoppingCart.cart.length === 0) {
-    return redirect("/cart");
+  console.log('shoppingCart ', shoppingCart.cart.length)
+  if (shoppingCart?.cart && shoppingCart?.cart.length === 0) {
+    // return redirect("/cart");
   }
 
   // If there's no shipping address information, redirect to the shipping page
-  if (cartStep === "review" && !shoppingCart.shipping) {
+  if (cartStep === "review" && !shoppingCart?.shipping) {
     return redirect("/checkout/shipping");
   }
 
@@ -201,7 +202,7 @@ export let action = async ({ request }: ActionFunctionArgs) => {
       }
 
     default:
-    // return redirect("/cart");
+    return redirect("/cart");
   }
 
   // If the errors object has any properties, that means the form didn't validate
