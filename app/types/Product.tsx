@@ -5,6 +5,7 @@ export type Product = {
     name: string;
     categories: Array<{id: number, value: string}>;
     subcategories: Array<{id: number, value: string}>;
+    entrepreneur: string; // <-- Rename and standardize this field in the backend "brand"
 
     // Pricing
     discount: number;
@@ -39,6 +40,7 @@ export type Product = {
     image1Url: string;
     image2Url: string;
     image3Url: string;
+    gallery: Array<any>;
 
     // Extas
     documentUrl: string;
