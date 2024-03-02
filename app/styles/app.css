@@ -1249,6 +1249,10 @@ select {
   margin-top: auto;
 }
 
+.mb-24 {
+  margin-bottom: 6rem;
+}
+
 .box-content {
   box-sizing: content-box;
 }
