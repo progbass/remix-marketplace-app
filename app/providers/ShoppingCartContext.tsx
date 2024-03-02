@@ -1,39 +1,37 @@
 // ShoppingCartContext.js
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, useReducer } from "react";
 
-import ShoppingCart, { ShoppingCartType } from "~/utils/ShoppingCart";
+import type { ShoppingCartType } from "~/utils/ShoppingCart";
+import ShoppingCart from "~/utils/ShoppingCart";
 
 const ShoppingCartInstance = new ShoppingCart();
 const ShoppingCartContext = createContext(ShoppingCartInstance);
 
-export const ShoppingCartProvider = ({ children, items }) => {
-  const [shoppingCart, setShoppingCart] = useState(ShoppingCartInstance);
-  console.log('provider init ', items)
-  shoppingCart.setCart(items);
+export const ShoppingCartProvider = (
+  { children, items } : {children: any, items: ShoppingCartType}
+) => {
+  const [cart, setCart] = useState(new ShoppingCart(items));
 
+  // Subscribe to changes
   useEffect(() => {
-    const unsubscribe = shoppingCart.subscribe((currentCart:ShoppingCartType) => {
-      // Trigger a re-render when the items property is updated
-      // unsubscribe()
-      console.log('----------------------------------------------------------')
-      // shoppingCart.clear();
-      const updatedShoppingCart = new ShoppingCart(currentCart);
-      console.log('actualizando desde el provider inside', currentCart, updatedShoppingCart)
-      console.log('----------------------------------------------------------')
-      setShoppingCart(updatedShoppingCart);
+    console.log('inside the use effect');
+    const unsubscribe = cart.subscribe((currentCart: ShoppingCartType) => {
+      console.log('-------------> Context updating: ', currentCart);
+      setCart(new ShoppingCart(currentCart));
     });
 
     return () => unsubscribe();
-  }, [shoppingCart]);
+  }, [cart]);
 
-//
+  // Return the provider
   return (
-    <ShoppingCartContext.Provider value={shoppingCart}>
+    <ShoppingCartContext.Provider value={cart}>
       {children}
     </ShoppingCartContext.Provider>
   );
 };
 
+// Export
 export { ShoppingCartContext };
 export const useShoppingCart = () => {
   return useContext(ShoppingCartContext);
