@@ -80,7 +80,7 @@ export default function () {
   return (
     <AppShield
       content={
-        <>
+        <div className="mb-24">
           {/* Background color split screen for large screens */}
           <div
             className="fixed left-0 top-0 hidden h-full w-1/2 bg-white lg:block"
@@ -124,7 +124,7 @@ export default function () {
             </div>
           </div>
 
-          <div className="mt-12">
+          <div className="mt-10">
             <h1 className="sr-only">Checkout</h1>
             {!stripeConfig?.clientSecret
               ? <Outlet context={paymentIntent} />
@@ -134,7 +134,7 @@ export default function () {
                 </Elements>
             }
           </div>
-        </>
+        </div>
       }
     />
   );
