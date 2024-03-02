@@ -1,4 +1,4 @@
-import { Fragment, useState, useContext } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "@remix-run/react";
 import { Dialog, Popover, Tab, Transition } from "@headlessui/react";
 import { SearchBox } from 'react-instantsearch';
@@ -13,7 +13,7 @@ import {
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 
 import classNames from "~/utils/classNames";
-import {ShoppingCartContext} from '~/providers/ShoppingCartContext';
+import {useShoppingCart} from '~/providers/ShoppingCartContext';
 
 // TYPES
 interface Props {
@@ -123,8 +123,8 @@ const AppShield = ({ header, sidebar, content, variant }: Props) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Shopping Cart
-  const ShoppingCartInstance = useContext(ShoppingCartContext);
-  const optimisticCount = ShoppingCartInstance.getProductsCount();
+  const ShoppingCartInstance = useShoppingCart();
+  const cartTotalProductsCount = ShoppingCartInstance.getProductsCount();
 
   // Return the main component
   return (
@@ -701,7 +701,7 @@ const AppShield = ({ header, sidebar, content, variant }: Props) => {
                             aria-hidden="true"
                           />
                           <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-gray-800">
-                            {optimisticCount}
+                            {cartTotalProductsCount}
                           </span>
                           <span className="sr-only">
                             productos, ver carrito
