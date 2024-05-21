@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "build": "npm run build:css && remix build",
-    "build:css": "tailwindcss -m -i ./styles/app.css -o app/styles/app.css",
+    "build:css": "tailwindcss -m -i ./tailwindcss/tailwind.css -o app/styles/app.css",
     "dev": "concurrently --raw \"npm run dev:node\" \"npm run dev:css\"",
     "dev:node": "remix dev -c \"node --inspect server.mjs\"",
     "dev:css": "tailwindcss -w -o ./app/styles/app.css",
