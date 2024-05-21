@@ -12,7 +12,7 @@
     "dev:css": "tailwindcss -w -o ./app/styles/app.css",
     "format": "prettier --write .",
     "lint": "eslint --ignore-path .gitignore --fix --cache --cache-location ./node_modules/.cache/eslint .",
-    "start": "remix-serve build",
+    "start": "remix-serve ./build/index.js",
     "typecheck": "tsc -b",
     "cypress:open": "yarn run cypress open",
     "cypress:run": "yarn run cypress run"
