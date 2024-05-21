@@ -36,7 +36,11 @@ import PaymentForm from "./PaymentForm";
 //
 
 //
-export default function ReviewForm() {
+export default function ReviewForm({
+  onFormCompleted = () => undefined,
+}: {
+  onFormCompleted: Function;
+}) {
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
   const [shippingInformation, setShippingInformation] = useState(
@@ -111,7 +115,9 @@ export default function ReviewForm() {
 
         <fieldset className="mt-4">
           <div className="">
-            <PaymentForm />
+            <PaymentForm 
+              onFormCompleted={onFormCompleted}
+            />
           </div>
         </fieldset>
       </div>

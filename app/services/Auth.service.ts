@@ -35,6 +35,7 @@ type UserData = {
   email: string;
 };
 
+console.log('AuthService', getEnv());
 // AUTHENTICATION SERVICE
 class AuthService {
   private API_URL: string = getEnv().API_URL;
@@ -79,15 +80,15 @@ class AuthService {
     throw new AuthorizationError("Wrong credentials");
   }
 
-  async login({ request }): Promise<Response> {
+  async login({ request, autoRedirect = true }): Promise<Response | User | null> {
     let currentUser;
-
     // Attempt to authenticate the user
     try {
       currentUser = await authenticator.authenticate("user-pass", request, {
         throwOnError: true,
         // failureRedirect: '/login',
       });
+      
 
     } catch (error) {
       // // Because redirects work by throwing a Response, you need to check if the
@@ -100,13 +101,13 @@ class AuthService {
       // }
       // here the error is a generic error that another reason may throw
       throw new Error(error);
-    }
+    }console.log('currentUser', currentUser);
 
     // commit the session
     const headers = await this.setSession(request, currentUser);
 
     //
-    return redirect("/me", { headers });
+    return autoRedirect ? redirect("/", { headers }) : [currentUser, headers];
   }
 
   async getCurrentUser({ request }) {

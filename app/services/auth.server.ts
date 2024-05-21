@@ -23,7 +23,10 @@ authenticator.use(
     new FormStrategy(async ( {form, ...request} ) => {
         // get the data from the form...
         let email = form.get('email') as string;
-        let password = form.get('password') as string;  
+        let password = form.get('password') as string; 
+        
+
+    console.log('currentUserasdasd asdasd ', email, password);
 
         let userData = await AuthService.loginAuthenticatorHandler({ email, password }, request)
             .catch((e) => {

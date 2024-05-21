@@ -14,13 +14,13 @@ export const ShoppingCartProvider = (
 
   // Subscribe to changes
   useEffect(() => {
-    console.log('inside the use effect');
     const unsubscribe = cart.subscribe((currentCart: ShoppingCartType) => {
       console.log('-------------> Context updating: ', currentCart);
+      // cart = undefined;
       setCart(new ShoppingCart(currentCart));
     });
 
-    return () => unsubscribe();
+    // return () => unsubscribe();
   }, [cart]);
 
   // Return the provider

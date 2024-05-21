@@ -4,6 +4,7 @@ import {
   useHierarchicalMenu,
   UseHierarchicalMenuProps,
 } from "react-instantsearch";
+import classNames from "~/utils/classNames";
 
 export default function (props: UseHierarchicalMenuProps) {
   const {
@@ -23,10 +24,10 @@ export default function (props: UseHierarchicalMenuProps) {
         createURL={createURL}
       />
       {props.showMore && (
-        <button 
-          disabled={!canToggleShowMore} 
-          onClick={toggleShowMore}
-          className="text-indigo-600 hover:text-indigo-500 mt-4"
+        <button
+          disabled={!canToggleShowMore}
+          onClick={e => { e.preventDefault(); toggleShowMore(); }}
+          className="text-secondary-600 hover:text-secondary-500 mt-4"
         >
           {isShowingMore ? "Ver menos" : "Ver más"}
         </button>
@@ -35,6 +36,7 @@ export default function (props: UseHierarchicalMenuProps) {
   );
 }
 
+//
 type HierarchicalListProps = Pick<
   ReturnType<typeof useHierarchicalMenu>,
   "items" | "createURL"
@@ -42,8 +44,7 @@ type HierarchicalListProps = Pick<
   onNavigate(value: string): void;
 };
 
-
-let counter = 0;
+//
 function HierarchicalList({
   items,
   createURL,
@@ -52,16 +53,14 @@ function HierarchicalList({
   if (items.length === 0) {
     return null;
   }
-  counter++;
 
   return (
-    <div className="space-y-3 pt-6">
+    <ul className="list-none space-y-3 pt-4">
+
       {items.map((item) => (
-        <div key={item.value} className="items-center" >
-          <input
-            id={`${item.value}`}
-            // name={`${section.id}[]`}
-            // defaultValue={option.value}
+        <li key={item.value} className="items-center">
+          <a
+            href={createURL(item.value)}
             onClick={(event) => {
               if (isModifierClick(event)) {
                 return;
@@ -70,32 +69,18 @@ function HierarchicalList({
 
               onNavigate(item.value);
             }}
-            checked={item.isRefined}
-            type="checkbox"
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <label
-            htmlFor={`${item.value}`}
-            className="ml-3 text-sm text-gray-600"
-            onClick={(event) => {
-              if (isModifierClick(event)) {
-                return;
-              }
-              event.preventDefault();
-
-              onNavigate(item.value);
-            }}
+            // style={{ fontWeight: item.isRefined ? "bold" : "normal" }}
+            className={classNames(
+              "ml-3 text-sm text-gray-600 hover:text-secondary-600",
+              item.isRefined ? "font-bold text-secondary-600" : "font-normal"
+            )}
           >
-            {/* <Link
-              to={createURL(item.value)}
-              
-              style={{ fontWeight: item.isRefined ? "bold" : "normal" }}
-            > */}
-              <span>{item.label}</span>
-              <span>{item.count}</span>
-            {/* </Link> */}
-          </label>
-
+            <span>{item.label}</span>{" "}
+            <span className="inline-flex items-center rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+              {item.count}
+            </span>
+          </a>
+          
           {item.data && (
             <div className={`pl-8 pb-3`}>
               <HierarchicalList
@@ -105,9 +90,9 @@ function HierarchicalList({
               />
             </div>
           )}
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { Link } from "@remix-run/react";
+import { Link, useFetcher } from "@remix-run/react";
+import { useEffect, useState } from "react";
+import { FetcherWithComponents } from "@remix-run/react";
 import { RadioGroup } from "@headlessui/react";
 import {
   CheckCircleIcon,
@@ -11,15 +12,19 @@ import type {
   ShippingMethod,
   ShoppingCartProduct,
   ShoppingCartShop,
+  ShoppingCartType,
 } from "~/utils/ShoppingCart";
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import classNames from "~/utils/classNames";
+import ShoppingCart from "~/utils/ShoppingCart";
+import { validateShippingAddressForm } from "./formValidators";
 
 //
 type OrderSummaryProps = {
   cartStep: string | undefined;
-  checkoutForm: any;
-  checkoutFormRef: any;
+  checkoutForm: FetcherWithComponents<any>;
+  checkoutFormRef: HTMLFormElement | undefined;
+  isFormCompleted: boolean;
   onProductRemove: (product: any) => void;
   onProductQuantityChange: (product: any, quantity: any) => void;
 };
@@ -27,46 +32,53 @@ export default function OrderSummary({
   cartStep,
   checkoutForm,
   checkoutFormRef,
+  isFormCompleted,
   onProductRemove,
   onProductQuantityChange,
 }: OrderSummaryProps) {
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
-  const cartItems = ShoppingCartInstance.getCart().cart;
+  const [localShoppingCart, setLocalShoppingCart] =
+    useState<ShoppingCart>(ShoppingCartInstance);
+  const storesList = localShoppingCart.getCart().cart;
 
   // Handle the delivery method change
-  const handleDeliveryMethodChange = (shopId:number|string, shippingMethodStringId:string) => {
-  // const handleDeliveryMethodChange = (
-  //   shopId: number | string,
-  //   shippingMethod: ShippingMethod
-  // ) => {
-    // The format of the shippingMethodStringId is `shippingMethod-${shopId}-${courierId}-${serviceType}`;
-    // Retrieve the shopId, courierId and serviceType from the shippingMethodStringId
-    const [fieldName, shop, courierId, serviceType] = shippingMethodStringId.split("-");
+  const handleDeliveryMethodChange = (shippingMethodStringId: string) => {
+    // The format of the shippingMethodStringId is `shippingMethod-${storeId}-${courierId}-${serviceType}`;
+    // Retrieve the storeId, courierId and serviceType from the shippingMethodStringId
+    const [fieldName, storeIdString, courierId, serviceType] =
+      shippingMethodStringId.split("-");
+    const storeId = parseInt(storeIdString);
+    console.log(storeId, courierId, serviceType);
 
     // Find the selected delivery method whithin the shop
-    const deliveryMethod = cartItems.find((shop) => shop.id === shopId)
-      ?.shippingQuote
-      ?.deliveries.find(
-        (delivery:ShippingMethod) => delivery.courierId == courierId && delivery.serviceType == serviceType
+    const deliveryMethod = storesList
+      .find((store) => store.id === storeId)
+      ?.shippingQuote?.deliveries.find(
+        (delivery: ShippingMethod) =>
+          delivery.courierId == courierId && delivery.serviceType == serviceType
       );
+    storesList.find((store) => {
+      console.log(store.id, storeId);
+      return store.id === storeId;
+    });
 
     // Update shopping cart
     if (deliveryMethod) {
       // Update the shopping cart with the selected delivery method (locally)
       // Clone the instance of the deliveryMethod to have an immutable object
       const deliveryMethodClone = JSON.parse(JSON.stringify(deliveryMethod));
-      ShoppingCartInstance.setShippingMethod(shopId, deliveryMethodClone);
+      ShoppingCartInstance.setShippingMethod(storeId, deliveryMethodClone);
 
+      // Update the local state
+      setLocalShoppingCart(ShoppingCartInstance);
+
+      // Save the selected delivery method to the server
+      // The form has a delay to allow the DOM to update the hidden inputs
       setTimeout(() => {
         // Submit the form asynchronously
         const formData = new FormData(checkoutFormRef.current);
-        formData.set("step", "setShippingMethod");
-        for (var pair of formData.entries()) {
-          console.log(pair[0] + ", " + pair[1]);
-        }
-
-        //
+        formData.set("step", "setShippingMethod"); // Set the action handler
         checkoutForm.submit(formData, {
           method: "POST",
         });
@@ -74,26 +86,56 @@ export default function OrderSummary({
     }
   };
 
+  // Determine submit button disabled state
+  function isSubmitDisabled () {
+    // Disable if the form is not present
+    if(!checkoutFormRef) return true;
+
+    // Disable if the form is being submitted
+    if (
+      checkoutForm.state === "submitting"
+      || checkoutForm.state === "loading"
+    ) return true;
+
+    //
+    if (cartStep === "shipping") {
+      // Disable if the corresponding form is not comleted
+      if(!isFormCompleted) return true;
+
+      // The form can be submitted
+      return false;
+    }
+    if (cartStep === "review") {
+      // Disable if the corresponding form is not comleted
+      if(!isFormCompleted) return true;
+      
+      // The form can be submitted
+      return false;
+    }
+
+    return true;
+  };
+
   // Render the component
   return (
-    <div className="mt-10 lg:mt-0">
+    <aside className="mt-10 lg:mt-0">
       <h2 className="text-lg font-medium text-gray-900">Resumen de la orden</h2>
 
       <div className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm">
         <h3 className="sr-only">Productos en tu carrito</h3>
         <ul role="list" className="divide-y divide-gray-200">
-          {cartItems.map((shop: ShoppingCartShop, index) => (
-            <li key={shop.id} className="px-4 py-6 sm:px-6">
-              <h3 className="font-medium">{shop.name}</h3>
+          {storesList.map((store: ShoppingCartShop, index) => (
+            <li key={store.id} className="px-4 py-6 sm:px-6">
+              <h3 className="font-medium">{store.name}</h3>
               {
                 // Include all products in the cart as hidden inputs
-                shop.products.map((product, productIndex) => {
+                store.products.map((product, productIndex) => {
                   return Array.from(Object.keys(product)).map(
                     (keyName: string) => {
                       return (
                         <input
                           type="hidden"
-                          name={`shops[${shop.id}][products][${productIndex}][${keyName}]`}
+                          name={`stores[${store.id}][products][${productIndex}][${keyName}]`}
                           value={product[keyName]}
                         />
                       );
@@ -103,31 +145,31 @@ export default function OrderSummary({
               }
               <input
                 type="hidden"
-                name={`shops[${shop.id}][id]`}
-                defaultValue={`${shop?.id}`}
+                name={`stores[${store.id}][id]`}
+                defaultValue={`${store?.id}`}
               />
               <input
                 type="hidden"
-                name={`shops[${shop.id}][name]`}
-                defaultValue={`${shop?.name}`}
+                name={`stores[${store.id}][name]`}
+                defaultValue={`${store?.name}`}
               />
               <input
                 type="hidden"
-                name={`shops[${shop.id}][image]`}
-                defaultValue={`${shop?.image}`}
+                name={`stores[${store.id}][image]`}
+                defaultValue={`${store?.image}`}
               />
               <input
                 type="hidden"
-                name={`shops[${shop.id}][user_id]`}
-                defaultValue={`${shop?.id}`}
+                name={`stores[${store.id}][user_id]`}
+                defaultValue={`${store?.id}`}
               />
               <input
                 type="hidden"
-                name={`shops[${shop.id}][location]`}
-                defaultValue={`${shop?.location}`}
+                name={`stores[${store.id}][location]`}
+                defaultValue={`${store?.location}`}
               />
 
-              {shop.products.map((product: ShoppingCartProduct) => (
+              {store.products.map((product: ShoppingCartProduct) => (
                 <div key={product.id} className="mt-5 relative">
                   <div className="flex">
                     <div className="flex-shrink-0">
@@ -199,50 +241,55 @@ export default function OrderSummary({
                 </div>
               ))}
 
-              {shop.shippingQuote?.deliveries &&
-                shop.shippingQuote?.deliveries?.length > 0 && (
+              {store.shippingQuote?.deliveries &&
+                store.shippingQuote?.deliveries?.length > 0 && (
                   <div className="mt-5 border-gray-200 ">
                     <input
                       type="hidden"
-                      name={`shops[${shop.id}][selectedShippingMethod][courier]`}
-                      defaultValue={`${shop?.selectedShippingMethod?.courier}`}
+                      name={`stores[${store.id}][selectedShippingMethod][courier]`}
+                      defaultValue={`${store?.selectedShippingMethod?.courier}`}
                     />
                     <input
                       type="hidden"
-                      name={`shops[${shop.id}][selectedShippingMethod][courierId]`}
-                      defaultValue={`${shop?.selectedShippingMethod?.courierId}`}
+                      name={`stores[${store.id}][selectedShippingMethod][courierId]`}
+                      defaultValue={`${store?.selectedShippingMethod?.courierId}`}
                     />
                     <input
                       type="hidden"
-                      name={`shops[${shop.id}][selectedShippingMethod][serviceType]`}
-                      defaultValue={`${shop?.selectedShippingMethod?.serviceType}`}
+                      name={`stores[${store.id}][selectedShippingMethod][serviceType]`}
+                      defaultValue={`${store?.selectedShippingMethod?.serviceType}`}
                     />
                     <input
                       type="hidden"
-                      name={`shops[${shop.id}][selectedShippingMethod][serviceName]`}
-                      defaultValue={`${shop?.selectedShippingMethod?.serviceName}`}
+                      name={`stores[${store.id}][selectedShippingMethod][serviceName]`}
+                      defaultValue={`${store?.selectedShippingMethod?.serviceName}`}
                     />
                     <input
                       type="hidden"
-                      name={`shops[${shop.id}][selectedShippingMethod][deliveryTimestamp]`}
-                      defaultValue={`${shop?.selectedShippingMethod?.deliveryTimestamp}`}
+                      name={`stores[${store.id}][selectedShippingMethod][deliveryTimestamp]`}
+                      defaultValue={`${store?.selectedShippingMethod?.deliveryTimestamp}`}
+                    />
+                    <input
+                      type="hidden"
+                      name={`stores[${store.id}][selectedShippingMethod][amount]`}
+                      defaultValue={`${store?.selectedShippingMethod?.amount}`}
                     />
 
                     <RadioGroup
-                      defaultValue={`shippingMethod-${shop.id}-${shop?.selectedShippingMethod?.courierId}-${shop?.selectedShippingMethod?.serviceType}`}
-                      onChange={(shippingMethodStringId) => handleDeliveryMethodChange(shop.id, shippingMethodStringId)}
+                      defaultValue={`shippingMethod-${store.id}-${store?.selectedShippingMethod?.courierId}-${store?.selectedShippingMethod?.serviceType}`}
+                      onChange={handleDeliveryMethodChange}
                     >
                       <RadioGroup.Label className="text-md text-gray-900">
                         Método de envío
                       </RadioGroup.Label>
 
                       <div className="mt-4 grid grid-cols-1 gap-y-2 sm:grid-cols-2 lg:grid-cols-1 sm:gap-x-4">
-                        {shop.shippingQuote?.deliveries &&
-                          shop.shippingQuote?.deliveries.map(
+                        {store.shippingQuote?.deliveries &&
+                          store.shippingQuote?.deliveries.map(
                             (deliveryMethod: ShippingMethod) => (
                               <RadioGroup.Option
-                                key={`shippingMethod-${shop.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
-                                value={`shippingMethod-${shop.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
+                                key={`shippingMethod-${store.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
+                                value={`shippingMethod-${store.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
                                 className={({ checked, active }) =>
                                   classNames(
                                     checked
@@ -255,7 +302,6 @@ export default function OrderSummary({
                               >
                                 {({ checked, active }) => (
                                   <>
-                                  
                                     {checked ? (
                                       <CheckCircleIcon
                                         className="h-6 w-6 text-indigo-600"
@@ -319,30 +365,30 @@ export default function OrderSummary({
         </ul>
         <dl className="space-y-6 border-t border-gray-200 px-4 py-6 sm:px-6">
           <div className="flex items-center justify-between">
-            <dt className="text-sm">Subtotal</dt>
+            <dt className="text-sm">Subtotal {}</dt>
             <dd className="text-sm font-medium text-gray-900">
-              ${ShoppingCartInstance.getSubtotal()}
+              ${localShoppingCart.getSubtotal()}
             </dd>
             <input
               type="hidden"
               name="order[subtotal]"
-              value={ShoppingCartInstance.getSubtotal()}
+              value={localShoppingCart.getSubtotal()}
             />
           </div>
 
-          {ShoppingCartInstance.getShippingCost() > 1 && (
+          {localShoppingCart.getShippingCost() > 1 && (
             <div className="flex items-center justify-between">
               <dt className="text-sm">
                 Costo de envío{" "}
-                {`(${ShoppingCartInstance.getCart().cart.length} envíos)`}
+                {`(${localShoppingCart.getCart().cart.length} envíos)`}
               </dt>
               <dd className="text-sm font-medium text-gray-900">
-                ${ShoppingCartInstance.getShippingCost()}
+                ${localShoppingCart.getShippingCost()}
               </dd>
               <input
                 type="hidden"
                 name="order[envio]"
-                value={ShoppingCartInstance.getShippingCost()}
+                value={localShoppingCart.getShippingCost()}
               />
             </div>
           )}
@@ -354,25 +400,31 @@ export default function OrderSummary({
           <div className="flex items-center justify-between border-t border-gray-200 pt-6">
             <dt className="text-base font-medium">Total</dt>
             <dd className="text-base font-medium text-gray-900">
-              ${ShoppingCartInstance.getTotal()}
+              ${localShoppingCart.getTotal()}
             </dd>
             <input
               type="hidden"
               name="order[total]"
-              value={ShoppingCartInstance.getTotal()}
+              value={localShoppingCart.getTotal()}
             />
           </div>
         </dl>
 
         <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
           <button
+            disabled={isSubmitDisabled()}
             type="submit"
-            className="w-full rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+            className={classNames(
+              isSubmitDisabled()
+                ? "cursor-not-allowed opacity-50 bg-gray-400"
+                : "cursor-pointer bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500 ",
+              "w-full rounded-md border border-transparent px-4 py-3 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50"
+            )}
           >
             {cartStep == "review" ? "Pagar" : "Continuar"}
           </button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

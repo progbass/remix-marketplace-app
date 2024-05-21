@@ -32,6 +32,7 @@ export type Product = {
     free_shipping: number|boolean;
 
     // Main gallery
+    image: string;
     images_id: "";
     images1_id: "";
     images2_id: "";

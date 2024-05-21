@@ -14,16 +14,23 @@ import type {
   LoaderFunction,
 } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { cssBundleHref } from "@remix-run/css-bundle";
 import { renderToString } from "react-dom/server";
-import algoliasearch from "algoliasearch";
 import { InstantSearch, InstantSearchSSRProvider } from "react-instantsearch";
 import type { InstantSearchServerState } from "react-instantsearch";
 import { getServerState } from "react-instantsearch";
 import { history } from "instantsearch.js/cjs/lib/routers/index.js";
+
 import "instantsearch.css/themes/satellite.css";
 import stylesheet from "../tailwind/tailwind.css";
 
 import getEnv from "get-env";
+import {
+  algoliaSearchClient,
+  algoliaRecommendClient,
+  algoliaProductsIndex,
+  algoliaAPISearchEndpoint,
+} from "~/utils/algoliaClients";
 import AuthService from "~/services/Auth.service";
 import {
   sessionStorage,
@@ -33,21 +40,20 @@ import {
 import authenticator from "~/services/auth.server";
 import { FetcherConfigurationProvider } from "~/providers/FetcherConfigurationContext";
 import { ShoppingCartProvider } from "~/providers/ShoppingCartContext";
+import { MarketplaceCategoriesProvider } from "~/providers/MarketplaceCategoriesContext";
 import { Fetcher } from "~/utils/fetcher";
 import CookieUtils from "set-cookie-parser";
 
+// Links
 export const links: LinksFunction = () => [
+  ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
   { rel: "stylesheet", href: stylesheet },
 ];
 
-//
-const searchClient = algoliasearch(
-  "A30F39KME9",
-  "64e2db4db25b030e512f238fa20dbd90"
-);
-
 // LOADER FUNCTION
-export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => {
+export const loader: LoaderFunction = async ({
+  request,
+}: LoaderFunctionArgs) => {
   // If the user is already authenticated redirect to /dashboard directly
   const user = (await AuthService.isAuthenticated(request)) || null;
   let session = await getSession(request.headers.get("cookie"));
@@ -68,7 +74,7 @@ export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => 
       CookieUtils.splitCookiesString(cookieHeader);
     var cookies: Array<any> = CookieUtils.parse(splitCookieHeaders);
 
-    // Search for the getEnv().API_SESSION_NAME cookie 
+    // Search for the getEnv().API_SESSION_NAME cookie
     // (Note: this needs to be the same as the API server's session name)
     const sessionCookie = cookies.find(
       (cookie) => cookie.name === getEnv().API_SESSION_NAME
@@ -78,7 +84,7 @@ export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => 
     // Save the sessionId in the session
     session.set(getEnv().API_SESSION_NAME, sessionCookie?.value);
     session.set("XSRF-TOKEN", xsrfCookie.value);
-    session.set(authenticator.sessionKey, xsrfCookie?.value);
+    // session.set(authenticator.sessionKey, xsrfCookie?.value);
 
     // commit the session and add the auth cookies to the response
     headers = new Headers({
@@ -86,9 +92,9 @@ export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => 
     });
     headers.append(
       "Set-Cookie",
-      `${getEnv().API_SESSION_NAME}=${
-        sessionCookie?.value
-      }; path=/; samesite=lax; SameSite=None; Secure`
+      `${
+        getEnv().API_SESSION_NAME
+      }=${sessionCookie?.value}; path=/; samesite=lax; SameSite=None; Secure`
     );
     headers.append(
       "Set-Cookie",
@@ -99,10 +105,8 @@ export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => 
   // Algolia InstantSearch SSR
   const serverUrl = request.url;
   const serverState = await getServerState(
-    <InstanteSearchProvider serverUrl={serverUrl} />,
-    {
-      renderToString,
-    }
+    <InstantSearchProvider serverUrl={serverUrl} />,
+    { renderToString }
   );
 
   // Fetch the shopping cart items
@@ -117,7 +121,28 @@ export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => 
     .catch((err) => {
       console.log(err);
     });
-    
+
+  // Search for categories at algolia
+  const algoliaIndex = algoliaSearchClient.initIndex(algoliaProductsIndex);
+  const facets = await algoliaIndex
+    .search("", {
+      facets: ["categories.lvl0"],
+      maxFacetHits: 10,
+      hitsPerPage: 0,
+    })
+    .catch((err) => {
+      console.error("Error:", err);
+    });
+
+  // Process facet values to generate the catgories list
+  const facetValues = facets?.facets?.["categories.lvl0"] || {};
+  const marketplaceCategories = Object.keys(facetValues).map((key) => {
+    return {
+      name: key,
+      count: facetValues[key],
+    };
+  });
+
   // Return the loader data including headers
   return json(
     {
@@ -130,10 +155,16 @@ export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => 
       serverState,
       serverUrl,
       shoppingCartItems,
+      marketplaceCategories: marketplaceCategories || [],
     },
     { ...(headers ? { headers } : {}) }
   );
 };
+
+export async function action({ request, context }: ActionFunctionArgs) {
+  console.log("logout action ");
+  await AuthService.logout(request);
+}
 
 type PageProps = {
   serverState?: InstantSearchServerState;
@@ -142,12 +173,16 @@ type PageProps = {
 };
 
 // Instant Search Provider
-function InstanteSearchProvider({ serverState, serverUrl, children }: PageProps) {
+function InstantSearchProvider({
+  serverState,
+  serverUrl,
+  children,
+}: PageProps) {
   return (
     <InstantSearchSSRProvider {...serverState}>
       <InstantSearch
-        searchClient={searchClient}
-        indexName="products"
+        searchClient={algoliaSearchClient}
+        indexName={algoliaProductsIndex}
         routing={{
           router: history({
             getLocation() {
@@ -157,7 +192,72 @@ function InstanteSearchProvider({ serverState, serverUrl, children }: PageProps)
 
               return window.location;
             },
+            // createURL({ qsModule, location, routeState }) {
+            //   // current search params 
+            //   const indexState = routeState[algoliaProductsIndex] || {};
+            //   const { origin, pathname, hash, search } = location;
+            //   // grab current query string and convert to object
+            //   const queryParameters = qsModule.parse(search.slice(1)) || {};
+              
+            //   // if there is an active search
+            //   if (Object.keys(indexState).length ){
+            //     // merge the search params with the current query params
+            //     Object.assign(queryParameters, routeState);
+            //   }else{
+            //     // remove the search params
+            //     delete queryParameters[algoliaProductsIndex];
+            //   }
+            //   if (routeState.query) {
+            //     queryParameters.query = encodeURIComponent(routeState.query);
+            //   }
+            //   if (routeState.page !== 1) {
+            //     queryParameters.page = routeState.page;
+            //   }
+            //   if (routeState.brands) {
+            //     queryParameters.brand = routeState.brands.map(encodeURIComponent);
+            //   }
+            //   if (routeState.categories) {
+            //     queryParameters.categories = routeState.categories.map(encodeURIComponent);
+            //   }
+      
+            //   let queryString = qsModule.stringify(queryParameters);
+              
+            //   if(queryString.length){
+            //     queryString = `?${queryString}`;
+            //   }
+      
+            //   return `${origin}${pathname}${queryString}${hash}`;
+            // },
           }),
+          stateMapping: {
+            stateToRoute(uiState) {
+              const indexUiState = uiState[algoliaProductsIndex];
+              // console.log("indexUiState", indexUiState);
+              return {
+                q: indexUiState.query,
+                categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
+                brand: indexUiState.hierarchicalMenu?.["brand.brand"],
+                page: indexUiState.page,
+                price: indexUiState.numericMenu?.["price"],
+              };
+            },
+            routeToState(routeState) {
+              // console.log("routeState ", routeState);
+              return {
+                [algoliaProductsIndex]: {
+                  query: routeState.q,
+                  hierarchicalMenu: {
+                    ["categories.lvl0"]: routeState.categories,
+                    ["brand.brand"]: routeState.brand,
+                  },
+                  page: routeState.page,
+                  numericMenu: {
+                    ["price"]: routeState.price,
+                  },
+                },
+              };
+            },
+          },
         }}
       >
         {children}
@@ -168,8 +268,14 @@ function InstanteSearchProvider({ serverState, serverUrl, children }: PageProps)
 
 // MAIN APP COMPONENT
 export default function App() {
-  const { ENV_VARS, user, serverState, serverUrl, shoppingCartItems } =
-    useLoaderData<typeof loader>();
+  const {
+    ENV_VARS,
+    user,
+    serverState,
+    serverUrl,
+    shoppingCartItems,
+    marketplaceCategories,
+  } = useLoaderData<typeof loader>();
 
   // Configure the fetcher
   const fetcher = new Fetcher(user ? user.token : null);
@@ -197,11 +303,16 @@ export default function App() {
       </head>
       <body className="h-full">
         <FetcherConfigurationProvider fetcher={fetcher}>
-          <InstanteSearchProvider serverState={serverState} serverUrl={serverUrl}>
-            <ShoppingCartProvider items={shoppingCart}>
-              <Outlet />
-            </ShoppingCartProvider>
-          </InstanteSearchProvider>
+          <InstantSearchProvider
+            serverState={serverState}
+            serverUrl={serverUrl}
+          >
+            <MarketplaceCategoriesProvider items={marketplaceCategories}>
+              <ShoppingCartProvider items={shoppingCart}>
+                <Outlet />
+              </ShoppingCartProvider>
+            </MarketplaceCategoriesProvider>
+          </InstantSearchProvider>
           <ScrollRestoration />
           <Scripts />
           <LiveReload />

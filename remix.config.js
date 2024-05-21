@@ -5,4 +5,10 @@ export default {
   // assetsBuildDirectory: "public/build",
   // publicPath: "/build/",
   // serverBuildPath: "build/index.js",
+  serverDependenciesToBundle: [
+    /^@algolia/,
+    /^@algolia\/autocomplete-theme-classic/,
+    // /^@react-spectrum/,
+    // /^@spectrum-icons/,
+  ],
 };

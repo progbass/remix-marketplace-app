@@ -1,41 +1,26 @@
-import { Fragment, useState, useEffect, EffectCallback } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Link, Form, useLoaderData } from "@remix-run/react";
-import { redirect } from "@remix-run/node";
+import { useState, useEffect, ChangeEvent } from "react";
+import { useLoaderData } from "@remix-run/react";
+import { FetcherWithComponents } from "@remix-run/react";
 
-import {
-  Dialog,
-  Popover,
-  RadioGroup,
-  Tab,
-  Transition,
-} from "@headlessui/react";
-import {
-  Bars3Icon,
-  MagnifyingGlassIcon,
-  QuestionMarkCircleIcon,
-  ShoppingBagIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
-import {
-  CheckCircleIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  TrashIcon,
-} from "@heroicons/react/20/solid";
-
-import type { ShippingInformation } from "~/utils/ShoppingCart";
-
-import {
-  ShoppingCartContext,
-  useShoppingCart,
-} from "~/providers/ShoppingCartContext";
+import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import { useFetcherConfiguration } from "~/providers/FetcherConfigurationContext";
 import getEnv from "get-env";
 import Fetcher from "~/utils/fetcher";
-import classNames from "~/utils/classNames";
 import SelectBox from "~/components/SelectBox";
 import InputText from "~/components/InputText";
+import {
+  validateAddressNumber,
+  validateCity,
+  validateEmail,
+  validateLastName,
+  validateName,
+  validateNeighborhood,
+  validatePhone,
+  validateShippingAddressForm,
+  validateState,
+  validateStreet,
+  validateZip,
+} from "./formValidators";
 
 //
 interface Neighborhood {
@@ -70,7 +55,7 @@ const getCities = function async(stateId: number, user: object): Promise<any> {
 
 //
 const getNeighborhoodsByZipCode = async (
-  zipCode: number,
+  zipCode: string | number,
   fetcher: Fetcher
 ): Promise<any> => {
   const addressFromZipCode = await fetcher
@@ -101,310 +86,86 @@ const getNeighborhoodsByZipCode = async (
   return Promise.resolve(formattedNeighborhoods);
 };
 
-const getNeighborhoodsByCityName = async (
-  cityName: number,
-  user: object
-): Promise<any> => {
-  const fetcher = new Fetcher();
-  const addressesAccumulator = [];
-  const addressFromZipCode = await fetcher
-    .fetch(
-      `https://sepomex.icalialabs.com/api/v1/zip_codes?city=${cityName}`,
-      {}
-    )
-    .catch((error) => {
-      console.log(error);
-      throw new Error("Error fetching address neighborhoods by city name");
-    });
-
-  // Check if there are multiple pages
-  const totalPages = addressFromZipCode.meta.pagination.total_pages;
-  console.log("addressFromZipCode", addressFromZipCode.meta.pagination, totalPages);
-  // If there are multiple pages, fetch the rest of the pages
-  // by calling this function recursively
-  if (false){  //totalPages > 1) {
-    const promises = [];
-    for (let i = 2; i <= totalPages; i++) {
-      promises.push(
-        fetcher
-          .fetch(
-            `https://sepomex.icalialabs.com/api/v1/zip_codes?city=${cityName}&page=${i}`,
-            {}
-          )
-          .catch((error) => {
-            console.log(error);
-            throw new Error("Error fetching address neighborhoods by city name [pagination]");
-          })
-      );
-    }
-
-    // Wait for all the promises to resolve
-    const additionalPages = await Promise.all(promises).catch((error) => {
-      console.log(error);
-      throw new Error("Error fetching address data from zip code");
-    });
-
-    // Concatenate the results
-    additionalPages.forEach((page) => {
-      addressesAccumulator.push(...page.zip_codes);
-    });
-  }
-
-  // Update the neighborhood options
-  addressesAccumulator.push(...addressFromZipCode.zip_codes);
-  const formattedNeighborhoods = addressesAccumulator.map(
-    (neighborhood) => ({
-      id: neighborhood.id,
-      name: neighborhood.d_asenta,
-      state: parseInt(neighborhood.c_estado),
-      state_name: neighborhood.d_estado,
-      municipality: parseInt(neighborhood.c_mnpio),
-      municipality_name: neighborhood.d_mnpio,
-      city: parseInt(neighborhood.c_cve_ciudad),
-      city_name: neighborhood.d_ciudad,
-    })
-  );
-
-  //
-  return Promise.resolve(formattedNeighborhoods);
-};
-
-//
-const normalizeString = (str) => {
-  return str
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-};
-
-//
 // Define a debounce function
-const debounce = (func, delay) => {
-  let timeoutId;
-  return function (...args) {
+const debounce = (func: Function, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return function (...args: any) {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func.apply(this, args), delay);
   };
 };
 
-//
-export default function ShippingForm({ addressStatesList = [] }) {
+// COMPONENT DEFINITION
+export default function ShippingForm({
+  addressStatesList = [],
+  formFetcher,
+  formRef,
+  onFormCompleted = () => undefined,
+}: {
+  formRef: React.RefObject<HTMLFormElement> | undefined;
+  addressStatesList: State[];
+  formFetcher: FetcherWithComponents<any>;
+  onFormCompleted: Function;
+}) {
   const clientSideFetcher: Fetcher = useFetcherConfiguration() as Fetcher;
-  const {
-    currentUser = null,
-    addressCitiesList = [],
-    addressNeighborhoodsList = [],
-  } = useLoaderData<typeof loader>();
+  const { currentUser = null, addressCitiesList = [] } =
+    useLoaderData<typeof loader>();
 
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
-  const [shippingAddress, setShippingAddress] = useState<ShippingInformation>(
-    ShoppingCartInstance.getShipping()
-  );
-
-  // Update the local state when the ShoppingCartInstance changes
-  useEffect(() => {
-    const updatedAddress = ShoppingCartInstance.getShipping();
-    setShippingAddress(updatedAddress);
-  }, [ShoppingCartInstance]);
-
-  useEffect(() => {
-    let isSubscribed = true;
-
-    const fetchData = async () => {
-      // fetch address information from zippopotam/mexico based on the zip code
-      const formattedNeighborhoods = await getNeighborhoodsByZipCode(
-        shippingAddress.zip,
-        clientSideFetcher
-      );
-
-      if (isSubscribed) {
-        // Update the neighborhood options
-        setNeighborhoodOptions(formattedNeighborhoods);
-      }
-    };
-
-    // call the function
-    fetchData()
-      // make sure to catch any error
-      .catch(console.error);
-
-    // cancel any future `setData`
-    return () => (isSubscribed = false);
-  }, [shippingAddress]);
+  const shippingAddress = ShoppingCartInstance.getShipping();
 
   // City SelectBox state
   const [citiesOptions, setCitiesOptions] = useState(addressCitiesList);
   const [addressCity, setAddressCity] = useState<City>(
-    citiesOptions.find((option: City) => option.id === shippingAddress?.city) ||
-      null
+    citiesOptions.find(
+      (option: City) => option.id === shippingAddress?.town_id
+    )
   );
-  useEffect(() => {
+  useEffect((): void => {
     let isSubscribed = true;
 
-    const fetchData = async () => {
-      console.log("citiesOptions", addressNeighborhood);
-      if (addressNeighborhood) {
-        const neighborhoodCity: Neighborhood = citiesOptions.find(
-          (option: City) =>
-            normalizeString(option.name.toLowerCase()) ===
-            normalizeString(addressNeighborhood.municipality_name.toLowerCase())
-        );
-
-        // If we found the neighborhood city, set it as the default
+    const fetchData = async () => { 
+      if (citiesOptions[0]) {
         if (isSubscribed) {
-          //neighborhoodCity) {
-          setAddressCity(neighborhoodCity);
-          return
-        }
-      } else {
-        if (citiesOptions[0]) {
-          // Attempt to find neighborhood by name
-          const neighborhoods = await getNeighborhoodsByCityName(
-            citiesOptions[0].name,
-            currentUser
-          ).catch((error) => {
-            console.log(error);
-          });
+          // Find the city that matches the shipping address's city
+          const selectedCity =
+            citiesOptions.find(
+              (option: City) => option.id === shippingAddress?.town_id
+            ) || citiesOptions[0]; // Or set the first city as the default
 
+          setAddressCity(selectedCity);
 
-          if (isSubscribed) {
-            // If we dont have neighborhoods, return empty array
-            if (!neighborhoods) {
-              setNeighborhoodOptions([]);
-              return;
-            }
-
-            // Set the neighborhood options
-            // setNeighborhoodOptions(neighborhoods);
-
-            // Set the first city as the default
-            setAddressCity(citiesOptions[0]);
+          // If there is a city selected, validate the form
+          if (onFormCompleted) {
+            setTimeout(() => onFormCompleted(isFormCompleted()), 50);
           }
         }
-        return
+        return;
       }
     };
 
     // call the function
-    fetchData()
-      // make sure to catch any error
-      .catch(console.error);
+    fetchData().catch(console.error); // make sure to catch any error
 
     // cancel any future `setData`
     return () => (isSubscribed = false);
   }, [citiesOptions]);
-  useEffect(() => {
-    if(addressCity){  
-      let isSubscribed = true;
 
-      const fetchData = async () => {
-        console.log("cambio la opción de delegación ", addressCity);
-        
-          // Attempt to find neighborhood by name
-          const neighborhoods = await getNeighborhoodsByCityName(
-            addressCity.name,
-            currentUser
-          ).catch((error) => {
-            console.log(error);
-          });
-
-
-          if (isSubscribed) {
-            // If we dont have neighborhoods, return empty array
-            if (!neighborhoods) {
-              setNeighborhoodOptions([]);
-              return;
-            }
-            console.log("neighborhoods", addressConfigFlow, neighborhoods  )
-            // Set the neighborhood options
-            if(addressConfigFlow === 'STATE_CONTROLLED'){
-              setNeighborhoodOptions(neighborhoods);
-            }
-            return; 
-          }
-
-        return;
-      };
-
-      // call the function
-      fetchData()
-        // make sure to catch any error
-        .catch(console.error);
-
-      // cancel any future `setData`
-      return () => (isSubscribed = false);
-    }
-  }, [addressCity]);
-
-  // Neighborhood SelectBox state
-  const [neighborhoodOptions, setNeighborhoodOptions] = useState(
-    addressNeighborhoodsList
-  );
+  // Neighborhood state
   const [addressNeighborhood, setAddressNeighborhood] = useState(
-    (() => {
-      // Verify that we have neighborhood options
-      if (neighborhoodOptions.length) {
-        // Note: This is a hack to get the initial neighborhood.
-        // Previously, users defined the neighborhood name with an input field, so names are inconsistent and we dont have the neighborhood id.
-        // So we need to find the neighborhood by name, and if it doesn't exist, we set the first neighborhood as the default.
-        let initialNeighborhood = neighborhoodOptions.find(
-          (option: Neighborhood) =>
-            option.name === shippingAddress?.neighborhood
-        );
-        if (!initialNeighborhood) {
-          initialNeighborhood = neighborhoodOptions[0];
-        }
-
-        return initialNeighborhood;
-      }
-      return null;
-    })()
+    shippingAddress.neighborhood
   );
-  useEffect(() => {
-    if (neighborhoodOptions.length) {
-      // Set the first neighborhood as the default
-      let defaultNeighborhood = neighborhoodOptions.find(
-        (option: Neighborhood) => option.name === shippingAddress?.neighborhood
-      );
-      console.log(
-        "ELIGIENDO EL BARRIO ",
-        shippingAddress,
-        neighborhoodOptions,
-        defaultNeighborhood
-      );
-      if (!defaultNeighborhood) {
-        defaultNeighborhood = neighborhoodOptions[0];
-      }
-      setAddressNeighborhood(defaultNeighborhood);
-
-      // Set the state where the neighborhood is located
-      if(addressConfigFlow === 'ZIP_CODE_CONTROLLED'){
-        setAddressState(
-          statesOptions.find(
-            (option: State) => option.id === defaultNeighborhood.state
-          )
-        );
-      }
-
-      // Exit function
-      return;
-    }
-
-    // Default value
-    setAddressNeighborhood(null);
-  }, [neighborhoodOptions]);
 
   // State SelectBox state
   const statesOptions = addressStatesList;
   const [addressState, setAddressState] = useState(
     addressStatesList.find(
-      (option: State) => option.id == shippingAddress.state
+      (option: State) => option.id == shippingAddress.state_id
     )
   );
   useEffect(() => {
     let isSubscribed = true;
-    // addressConfigFlow = 'STATE_CONTROLLED';
 
     if (addressState) {
       const handler = async () => {
@@ -435,37 +196,98 @@ export default function ShippingForm({ addressStatesList = [] }) {
   }, [addressState]);
 
   //
-  const [addressConfigFlow, setAddressConfigFlow] = useState('ZIP_CODE_CONTROLLED');
-  const onZipCodeChange = debounce(async (event) => {
-    console.log("onZipCodeChange");
-    const zipCode = event.target.value;
-    // Verify that the zip code is at least 4
-    if (zipCode.length < 4) return;
+  const onZipCodeChange = debounce(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const zipCode: string = event.target.value;
+      // Verify that the zip code is at least 4
+      if (zipCode.length < 4) return;
 
-    // fetch address information from zippopotam/mexico based on the zip code
-    const formattedNeighborhoods = await getNeighborhoodsByZipCode(
-      zipCode,
-      clientSideFetcher
-    );
+      // fetch address information from zippopotam/mexico based on the zip code
+      const formattedNeighborhoods = await getNeighborhoodsByZipCode(
+        zipCode,
+        clientSideFetcher
+      );
 
-    // Update the neighborhood options
-    setAddressConfigFlow('ZIP_CODE_CONTROLLED');
-    setNeighborhoodOptions(formattedNeighborhoods);
-  }, 500);
+      // Find the correct state whithin the statesList array
+      const selectedState = addressStatesList.find(
+        (state: State) => state.id === formattedNeighborhoods[0].state
+      );
+      setAddressState(selectedState);
+    },
+    500
+  );
 
-
-  function handleAddressStateInputChange (option:Option) {
-    setAddressConfigFlow('STATE_CONTROLLED');
-    setAddressNeighborhood(null);
+  //
+  function handleAddressStateInputChange(option: Option) {
     setAddressState(option);
-  }
-  function handleAddressCityInputChange (option:Option) {
-    setAddressConfigFlow('STATE_CONTROLLED');
-    setAddressNeighborhood(null);
-    setAddressCity(option);
   }
 
   //
+  function handleAddressCityInputChange(option: Option) {
+    setAddressCity(option);
+  }
+
+  // Form handlers and validations
+  const [isFormPristine, setIsFormPristine] = useState(true);
+  const [formErrors, setFormErrors] = useState(
+    formFetcher?.data?.formErrors || {}
+  );
+  function validateField(
+    event: {name: string, value: string|number|null},
+    validator: Function
+  ): void {
+    // If the form is pristine, skip validation
+    if (isFormPristine) {
+      // return;
+    }
+
+    // Validate field
+    const [isValid, errors] = validator(event.value);
+
+    // Update form errors
+    const newErrorsState = isValid
+      ? (prev: { [key: string]: [string] }) => {
+          // Get all values from the previous state exept the current field
+          const { [event.name]: _, ...rest } = prev;
+          return rest;
+        }
+      : (prev: { [key: string]: [string] }) => ({
+          ...prev,
+          [event.name]: errors,
+        });
+
+    // Display the form errors
+    setFormErrors(newErrorsState);
+
+    // if there are no formErrors, then the form is completed
+    if (onFormCompleted) {
+      onFormCompleted(isFormCompleted());
+      return;
+    }
+
+    return;
+  }
+
+  function isFormCompleted(): boolean {
+    const formData = new FormData(formRef.current);
+    const formValues: { [key: string]: any } = {};
+    formData.forEach((value, key) => {
+      formValues[key] = value;
+    });
+
+    // Check if the form is completed
+    const formErrors = validateShippingAddressForm(formValues);
+    const isFormValid = Object.keys(formErrors).length === 0;
+
+    return isFormValid;
+  }
+  useEffect(() => {
+    if (onFormCompleted) {
+      onFormCompleted(isFormCompleted());
+    }
+  }, []);
+
+  // Return the component
   return (
     <>
       <div>
@@ -473,15 +295,22 @@ export default function ShippingForm({ addressStatesList = [] }) {
           Información de contacto
         </h2>
 
+        {/* RECEIVER EMAIL */}
         <div className="mt-4">
           <InputText
-              id="email-address"
-              name="user[email]"
-              type="text"
-              label="Email"
-              autoComplete="email"
-              defaultValue={shippingAddress.email}
-              // errors={formErrors?.brand}
+            id="email-address"
+            name="user[email]"
+            type="text"
+            label="Email"
+            autoComplete="email"
+            defaultValue={shippingAddress.email}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              validateField({name: e.target.name, value: e.target.value}, validateEmail);
+            }}
+            onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+              validateField({name: e.target.name, value: e.target.value}, validateEmail);
+            }}
+            errors={formErrors?.["user[email]"]}
           />
         </div>
       </div>
@@ -501,7 +330,13 @@ export default function ShippingForm({ addressStatesList = [] }) {
               label="Nombre"
               autoComplete="name"
               defaultValue={shippingAddress.name}
-              // errors={formErrors?.brand}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateName);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateName);
+              }}
+              errors={formErrors?.["user[name]"]}
             />
           </div>
 
@@ -514,7 +349,13 @@ export default function ShippingForm({ addressStatesList = [] }) {
               label="Apellidos"
               autoComplete="lastname"
               defaultValue={shippingAddress.lastname}
-              // errors={formErrors?.brand}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateLastName);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateLastName);
+              }}
+              errors={formErrors?.["user[lastname]"]}
             />
           </div>
 
@@ -527,7 +368,13 @@ export default function ShippingForm({ addressStatesList = [] }) {
               label="Dirección / Calle"
               autoComplete="street"
               defaultValue={shippingAddress.street}
-              // errors={formErrors?.brand}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateStreet);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateStreet);
+              }}
+              errors={formErrors?.["user[street]"]}
             />
           </div>
 
@@ -540,7 +387,13 @@ export default function ShippingForm({ addressStatesList = [] }) {
               label="Número exterior"
               autoComplete="num_ext"
               defaultValue={shippingAddress.num_ext}
-              // errors={formErrors?.brand}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
+              }}
+              errors={formErrors?.["user[num_ext]"]}
             />
           </div>
 
@@ -553,7 +406,13 @@ export default function ShippingForm({ addressStatesList = [] }) {
               label="Interior, departamento, etc."
               autoComplete="num_int"
               defaultValue={shippingAddress.num_int}
-              // errors={formErrors?.brand}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
+              }}
+              errors={formErrors?.["user[num_int]"]}
             />
           </div>
 
@@ -566,8 +425,14 @@ export default function ShippingForm({ addressStatesList = [] }) {
               label="Código postal"
               autoComplete="zipcode"
               defaultValue={shippingAddress.zipcode}
-              onChange={(event) => onZipCodeChange(event)}
-              // errors={formErrors?.brand}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                onZipCodeChange(e);
+                validateField({name: e.target.name, value: e.target.value}, validateZip);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateZip);
+              }}
+              errors={formErrors?.["user[zipcode]"]}
             />
           </div>
 
@@ -593,9 +458,81 @@ export default function ShippingForm({ addressStatesList = [] }) {
             </div>
           </div>
 
+          {/* STATE */}
+          <div className="col-span-1">
+            <SelectBox
+              label="Estado"
+              value={addressState}
+              onChange={(e:Option) => {
+                handleAddressStateInputChange(e);
+              }}
+              optionsList={statesOptions}
+            />
+            <input
+              type="hidden"
+              name="user[state_id]"
+              value={addressState?.id || ""}
+            />
+            <input
+              type="hidden"
+              name="user[stateName]"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateState);
+              }}
+              value={addressState?.name || ""}
+            />
+
+            {formErrors?.["user[stateName]"]?.length ? (
+              <p className="mt-2 text-sm text-red-600" id="state-error">
+                {formErrors?.map((error: string, index: number) => (
+                  <span key={index}>
+                    {error}
+                    <br />
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </div>
+
+          {/* CITY */}
+          <div className="col-span-1">
+            <SelectBox
+              label="Delegación / Municipio"
+              value={addressCity}
+              onChange={(e: Option) => {
+                handleAddressCityInputChange(e);
+              }}
+              optionsList={citiesOptions}
+            />
+            <input
+              type="hidden"
+              name="user[town_id]"
+              value={addressCity?.id || ""}
+            />
+            <input
+              type="hidden"
+              name="user[cityName]"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateCity);
+              }}
+              value={addressCity?.name || ""}
+            />
+
+            {formErrors?.["user[cityName]"]?.length ? (
+              <p className="mt-2 text-sm text-red-600" id="city-error">
+                {formErrors?.map((error: string, index: number) => (
+                  <span key={index}>
+                    {error}
+                    <br />
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </div>
+
           {/* NEIGHBORHOOD */}
           <div className="col-span-full">
-            <SelectBox
+            {/* <SelectBox
               label="Colonia"
               value={addressNeighborhood}
               onChange={setAddressNeighborhood}
@@ -605,31 +542,22 @@ export default function ShippingForm({ addressStatesList = [] }) {
               type="hidden"
               name="user[neighborhood]"
               value={addressNeighborhood?.name || ""}
+            /> */}
+            <InputText
+              id="phone"
+              name="user[neighborhood]"
+              type="text"
+              label="Colonia"
+              autoComplete="neighborhood"
+              defaultValue={addressNeighborhood || ""}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateNeighborhood);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validateNeighborhood);
+              }}
+              errors={formErrors?.["user[neighborhood]"]}
             />
-          </div>
-
-          {/* CITY */}
-          <div className="col-span-1">
-            <SelectBox
-              label="Delegación / Municipio"
-              value={addressCity}
-              onChange={handleAddressCityInputChange}
-              optionsList={citiesOptions}
-            />
-            <input type="hidden" name="user[town_id]" value={addressCity?.id || ""} />
-            <input type="hidden" name="cityName" value={addressCity?.name || ""} />
-          </div>
-
-          {/* STATE */}
-          <div className="col-span-1">
-            <SelectBox
-              label="Estado"
-              value={addressState}
-              onChange={handleAddressStateInputChange}
-              optionsList={statesOptions}
-            />
-            <input type="hidden" name="user[state_id]" value={addressState?.id || ""} />
-            <input type="hidden" name="stateName" value={addressState?.name || ""} />
           </div>
 
           {/* PHONE */}
@@ -641,7 +569,13 @@ export default function ShippingForm({ addressStatesList = [] }) {
               label="Teléfono"
               autoComplete="phone"
               defaultValue={shippingAddress.phone}
-              // errors={formErrors?.brand}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validatePhone);
+              }}
+              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                validateField({name: e.target.name, value: e.target.value}, validatePhone);
+              }}
+              errors={formErrors?.["user[phone]"]}
             />
           </div>
         </div>

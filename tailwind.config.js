@@ -13,7 +13,9 @@ module.exports = {
     // 'node_modules/flowbite-react/**/*.{js,jsx,ts,tsx}',
   ],
   theme: {
-    // colors,
+    extend: {
+      colors,
+    },
     // extend: {
     //   fontSize: {
     //     '3xl': '1.75rem',

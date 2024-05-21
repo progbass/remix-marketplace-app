@@ -160,7 +160,7 @@ export default function ShoppingCart() {
                     <h3 
                       className="text-md font-medium text-gray-900"
                     >
-                      <Link to={`/shop/${shop.id}`}>
+                      <Link to={`/store/${shop.id}`}>
                         {shop.name}
                       </Link>
                     </h3>
@@ -168,9 +168,9 @@ export default function ShoppingCart() {
                     {shop.products.map((product:ShoppingCartProduct, productIdx) => (
                       <div key={product.id} className="flex mt-8" >
                         
-                        <input type="hidden" name={`shops[${shop.id}][products][id]`} defaultValue={product.id} />
-                        <input type="hidden" name={`shops[${shop.id}][products][users_id]`} defaultValue={product.users_id} />
-                        <input type="hidden" name={`shops[${shop.id}][products][modelo]`} defaultValue={product.modelo} />
+                        <input type="hidden" name={`stores[${shop.id}][products][id]`} defaultValue={product.id} />
+                        <input type="hidden" name={`stores[${shop.id}][products][users_id]`} defaultValue={product.users_id} />
+                        <input type="hidden" name={`stores[${shop.id}][products][modelo]`} defaultValue={product.modelo} />
                         <input type="hidden" name={``} defaultValue={product.quantity} />
                         <div className="flex-shrink-0">
                           <img
@@ -208,14 +208,14 @@ export default function ShoppingCart() {
 
                             <div className="mt-4 sm:mt-0 sm:pr-9">
                               <label
-                                htmlFor={`shops[${shop.id}][products][quantity]`}
+                                htmlFor={`stores[${shop.id}][products][quantity]`}
                                 className="sr-only"
                               >
                                 Cantidad, {product.name}
                               </label>
                               <select
-                                id={`shops[${shop.id}][products][quantity]`}
-                                name={`shops[${shop.id}][products][quantity]`}
+                                id={`stores[${shop.id}][products][quantity]`}
+                                name={`stores[${shop.id}][products][quantity]`}
                                 defaultValue={product.quantity}
                                 onChange={event => handleProductQuantityChange(product, event)}
                                 className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"

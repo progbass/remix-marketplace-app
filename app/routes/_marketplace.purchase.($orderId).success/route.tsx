@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { es } from "date-fns/locale";
 import Stripe from "stripe";
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
@@ -6,6 +7,8 @@ import { Link, Form, useLoaderData } from "@remix-run/react";
 import { redirect } from "@remix-run/node";
 import classNames from "../../utils/classNames";
 import Fetcher from "~/utils/fetcher";
+import { formatDate } from "~/utils/dateUtils";
+
 import getEnv from "get-env";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -16,212 +19,208 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Retrieve payment intent status
   const stripe2 = new Stripe(getEnv().STRIPE_SECRET_KEY);
   const url = new URL(request.url);
-  const id = url.searchParams.get("payment_intent")
-  const id2 = url.searchParams.get("payment_intent_client_secret")
-  const paymentIntent = await stripe2.paymentIntents.retrieve(id, {
-    client_secret: id2,
-  });
+  const paymentIntentId:string | null = url.searchParams.get("payment_intent");
+  const paymentIntentClientSecret:string | null = url.searchParams.get("payment_intent_client_secret")
+  
+  // Redirect if payment information is not found
+  if (!paymentIntentId || !paymentIntentClientSecret) {
+    return redirect("/");
+  }
 
-  const orderDetails = await fetcher.
-    fetch(`${getEnv().API_URL}/order/${orderId}`, 
+  // Retrieve payment intent
+  const paymentIntent = await stripe2.paymentIntents.retrieve(paymentIntentId, {
+    client_secret: paymentIntentClientSecret,
+  });
+  if (!paymentIntent) {
+    return redirect("/");
+  }
+
+  // Retrieve purchase details
+  const purchaseDetails = await fetcher.
+    fetch(`${getEnv().API_URL}/purchase/${orderId}`, 
     {
       method: "GET",
     }
   );
+  if (!purchaseDetails) {
+    return redirect("/");
+  }
 
   // Redirect if paymentIntent does not match the order's paymentIntent
-  // if (paymentIntent.id !== orderDetails.paymentIntent) {
-  //   return redirect("/cart");
-  // }
-
-
-  console.log("loading thank-you step ", orderDetails);
-
+  console.log("paymentIntent.id", paymentIntent.id, purchaseDetails.purchase.payment_intent);
+  if (paymentIntent.id !== purchaseDetails.purchase.payment_intent) {
+    return redirect("/");
+  }
 
   // Return to the cart page
   return {
-    order: orderDetails,
+    purchase: purchaseDetails?.purchase || null,
+    orders: purchaseDetails?.orders || [],
+    customer: purchaseDetails?.customer || null,
+    labels: purchaseDetails?.labels || null,
     paymentIntent,
   };
 }
 
-const products = [
-    {
-      id: 1,
-      name: 'Nomad Tumbler',
-      description:
-        'This durable and portable insulated tumbler will keep your beverage at the perfect temperature during your next adventure.',
-      href: '#',
-      price: '35.00',
-      status: 'Preparing to ship',
-      step: 1,
-      date: 'March 24, 2021',
-      datetime: '2021-03-24',
-      address: ['Floyd Miles', '7363 Cynthia Pass', 'Toronto, ON N3Y 4H8'],
-      email: 'f•••@example.com',
-      phone: '1•••••••••40',
-      imageSrc: 'https://tailwindui.com/img/ecommerce-images/confirmation-page-03-product-01.jpg',
-      imageAlt: 'Insulated bottle with white base and black snap lid.',
-    },
-    {
-      id: 2,
-      name: 'Minimalist Wristwatch',
-      description: 'This contemporary wristwatch has a clean, minimalist look and high quality components.',
-      href: '#',
-      price: '149.00',
-      status: 'Shipped',
-      step: 0,
-      date: 'March 23, 2021',
-      datetime: '2021-03-23',
-      address: ['Floyd Miles', '7363 Cynthia Pass', 'Toronto, ON N3Y 4H8'],
-      email: 'f•••@example.com',
-      phone: '1•••••••••40',
-      imageSrc: 'https://tailwindui.com/img/ecommerce-images/confirmation-page-03-product-02.jpg',
-      imageAlt:
-        'Arm modeling wristwatch with black leather band, white watch face, thin watch hands, and fine time markings.',
-    },
-    // More products...
-  ]
-
 //
 export default function ThankYou() {
+  const { purchase, orders, customer, labels } = useLoaderData<typeof loader>();
+
   //
   return (
     <div className="relative mx-auto max-w-2xl pb-24 pt-8 sm:px-6 sm:pt-16 lg:max-w-7xl lg:px-8">
       <div className="space-y-2 px-4 sm:flex sm:items-baseline sm:justify-between sm:space-y-0 sm:px-0">
         <div className="flex sm:items-baseline sm:space-x-4">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            Order #54879
-          </h1>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Gracias por tu compra
+            </h1>
+            <h2 className="text-xl tracking-tight text-gray-500 sm:text-2xl">
+              Orden #ML-{purchase.id}
+            </h2>
+          </div>
+
+          {/*           
           <a
             href="#"
             className="hidden text-sm font-medium text-indigo-600 hover:text-indigo-500 sm:block"
           >
-            View invoice
+            Ver recibo
             <span aria-hidden="true"> &rarr;</span>
-          </a>
+          </a> */}
         </div>
         <p className="text-sm text-gray-600">
-          Order placed{" "}
+          Fecha de compra {" "}
           <time dateTime="2021-03-22" className="font-medium text-gray-900">
-            March 22, 2021
+            {formatDate(purchase.created_at)}
           </time>
         </p>
-        <a
+        {/*<a
           href="#"
           className="text-sm font-medium text-indigo-600 hover:text-indigo-500 sm:hidden"
         >
-          View invoice
+          Ver recibo
           <span aria-hidden="true"> &rarr;</span>
-        </a>
+        </a>*/}
       </div>
 
       {/* Products */}
       <section aria-labelledby="products-heading" className="mt-6">
         <h2 id="products-heading" className="sr-only">
-          Products purchased
+          Productos comprados
         </h2>
 
         <div className="space-y-8">
-          {products.map((product) => (
+          {orders.map((order) => (
             <div
-              key={product.id}
+              key={order.id}
               className="border-b border-t border-gray-200 bg-white shadow-sm sm:rounded-lg sm:border"
             >
+              {/* Order Details */}
               <div className="px-4 py-6 sm:px-6 lg:grid lg:grid-cols-12 lg:gap-x-8 lg:p-8">
+                {/* Products list */}
                 <div className="sm:flex lg:col-span-7">
                   <div className="aspect-h-1 aspect-w-1 w-full flex-shrink-0 overflow-hidden rounded-lg sm:aspect-none sm:h-40 sm:w-40">
                     <img
-                      src={product.imageSrc}
-                      alt={product.imageAlt}
+                      src={order.static_products[0]?.image}
+                      alt={order.static_products[0]?.name}
                       className="h-full w-full object-cover object-center sm:h-full sm:w-full"
                     />
                   </div>
 
-                  <div className="mt-6 sm:ml-6 sm:mt-0">
-                    <h3 className="text-base font-medium text-gray-900">
-                      <a href={product.href}>{product.name}</a>
-                    </h3>
-                    <p className="mt-2 text-sm font-medium text-gray-900">
-                      ${product.price}
-                    </p>
-                    <p className="mt-3 text-sm text-gray-500">
-                      {product.description}
-                    </p>
-                  </div>
+                  <ul className="mt-6 sm:ml-6 sm:mt-0 list-outside">
+                    {order.static_products.map((product) => (
+                      <li key={product.id} >
+                        <div className=" ">
+                          <h3 className="text-base font-medium text-gray-900">
+                            {product.name}
+                          </h3>
+                          <p className="mt-1 text-sm font-medium text-gray-900">
+                            ${product.price}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {'product.description'}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
+                {/* Customer details */}
                 <div className="mt-6 lg:col-span-5 lg:mt-0">
                   <dl className="grid grid-cols-2 gap-x-6 text-sm">
                     <div>
                       <dt className="font-medium text-gray-900">
-                        Delivery address
+                        Dirección de entrega
                       </dt>
                       <dd className="mt-3 text-gray-500">
-                        <span className="block">{product.address[0]}</span>
-                        <span className="block">{product.address[1]}</span>
-                        <span className="block">{product.address[2]}</span>
+                        <span className="block">{`${customer.street} ${customer.num_ext}${customer?.num_int ? ', '+customer?.num_int : ''} `}</span>
+                        <span className="block">{`${customer.neighborhood}, ${customer.zipcode}. ${customer.town.name}, ${customer.state.name}.`}</span>
                       </dd>
                     </div>
                     <div>
                       <dt className="font-medium text-gray-900">
-                        Shipping updates
+                        Contacto de compra
                       </dt>
                       <dd className="mt-3 space-y-3 text-gray-500">
-                        <p>{product.email}</p>
-                        <p>{product.phone}</p>
-                        <button
+                        <p>{customer.email}</p>
+                        <p>{customer.phone}</p>
+                        {/* <button
                           type="button"
                           className="font-medium text-indigo-600 hover:text-indigo-500"
                         >
                           Edit
-                        </button>
+                        </button> */}
                       </dd>
                     </div>
                   </dl>
                 </div>
               </div>
 
+              {/* Order Status */}
               <div className="border-t border-gray-200 px-4 py-6 sm:px-6 lg:p-8">
                 <h4 className="sr-only">Status</h4>
                 <p className="text-sm font-medium text-gray-900">
-                  {product.status} on{" "}
-                  <time dateTime={product.datetime}>{product.date}</time>
+                  Fecha aproximada de entrega {" "}
+                  <time dateTime={order.expected_shipping_date}>
+                    {formatDate(order.expected_shipping_date)}
+                  </time>
                 </p>
                 <div className="mt-6" aria-hidden="true">
                   <div className="overflow-hidden rounded-full bg-gray-200">
                     <div
                       className="h-2 rounded-full bg-indigo-600"
                       style={{
-                        width: `calc((${product.step} * 2 + 1) / 8 * 100%)`,
+                        width: `calc((${0} * 2 + 1) / 8 * 100%)`,
                       }}
                     />
                   </div>
                   <div className="mt-6 hidden grid-cols-4 text-sm font-medium text-gray-600 sm:grid">
-                    <div className="text-indigo-600">Order placed</div>
+                    <div className="text-indigo-600">Order creada</div>
                     <div
                       className={classNames(
-                        product.step > 0 ? "text-indigo-600" : "",
+                        0 > 0 ? "text-indigo-600" : "",
                         "text-center"
                       )}
                     >
-                      Processing
+                      Elaborando pedido
                     </div>
                     <div
                       className={classNames(
-                        product.step > 1 ? "text-indigo-600" : "",
+                        0 > 1 ? "text-indigo-600" : "",
                         "text-center"
                       )}
                     >
-                      Shipped
+                      En camino
                     </div>
                     <div
                       className={classNames(
-                        product.step > 2 ? "text-indigo-600" : "",
+                        0 > 2 ? "text-indigo-600" : "",
                         "text-right"
                       )}
                     >
-                      Delivered
+                      Entregada
                     </div>
                   </div>
                 </div>
@@ -238,7 +237,9 @@ export default function ThankYou() {
         </h2>
 
         <div className="bg-gray-100 px-4 py-6 sm:rounded-lg sm:px-6 lg:grid lg:grid-cols-12 lg:gap-x-8 lg:px-8 lg:py-8">
+          {/* 
           <dl className="grid grid-cols-2 gap-6 text-sm sm:grid-cols-2 md:gap-x-8 lg:col-span-7">
+            // Billing Information
             <div>
               <dt className="font-medium text-gray-900">Billing address</dt>
               <dd className="mt-3 text-gray-500">
@@ -247,6 +248,8 @@ export default function ThankYou() {
                 <span className="block">Toronto, ON N3Y 4H8</span>
               </dd>
             </div>
+
+            // Payment Information
             <div>
               <dt className="font-medium text-gray-900">Payment information</dt>
               <dd className="-ml-4 -mt-1 flex flex-wrap">
@@ -273,25 +276,46 @@ export default function ThankYou() {
               </dd>
             </div>
           </dl>
+          */}
 
+          {/* Order Summary */}
           <dl className="mt-8 divide-y divide-gray-200 text-sm lg:col-span-5 lg:mt-0">
             <div className="flex items-center justify-between pb-4">
               <dt className="text-gray-600">Subtotal</dt>
-              <dd className="font-medium text-gray-900">$72</dd>
+              <dd className="font-medium text-gray-900">{purchase.subtotal}</dd>
             </div>
             <div className="flex items-center justify-between py-4">
-              <dt className="text-gray-600">Shipping</dt>
-              <dd className="font-medium text-gray-900">$5</dd>
+              <dt className="text-gray-600">
+                Costo de envío {" "}
+                {`(${orders.length} envíos)`}
+              </dt>
+              <dd className="font-medium text-gray-900">{purchase.shippingCost}</dd>
             </div>
-            <div className="flex items-center justify-between py-4">
+            {/* <div className="flex items-center justify-between py-4">
               <dt className="text-gray-600">Tax</dt>
               <dd className="font-medium text-gray-900">$6.16</dd>
-            </div>
+            </div> */}
             <div className="flex items-center justify-between pt-4">
-              <dt className="font-medium text-gray-900">Order total</dt>
-              <dd className="font-medium text-indigo-600">$83.16</dd>
+              <dt className="font-medium text-gray-900">Total</dt>
+              <dd className="font-medium text-indigo-600">{purchase.total}</dd>
             </div>
           </dl>
+        </div>
+      </section>
+
+      {/* Call to Action Container */}
+      <section aria-labelledby="summary-heading" className="mt-16">
+        <div className="flex flex-col items-center justify-center">
+          <h3 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-xl">
+            Continúa explorando México Limited
+          </h3>
+          
+          <Link
+            to="/"
+            className="mt-4 rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+          >
+            Regresara la tienda
+          </Link>
         </div>
       </section>
     </div>

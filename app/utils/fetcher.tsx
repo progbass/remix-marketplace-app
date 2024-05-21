@@ -67,6 +67,14 @@ class Fetcher {
     return headers;
   }
 
+  private setAcceptHeader = (headers:any) => {
+    if(!headers?.["Accept"]){
+      console.log('Setting Accept Header')
+      headers["Accept"] = "application/json";
+    }
+    return headers;
+  }
+
   fetch = async (
     url: string, 
     options:{ 
@@ -85,6 +93,7 @@ class Fetcher {
     headers = this.setAuthorizationHeader(headers);
     headers = this.setCookieHeader(headers);
     //headers = this.setContentTypeHeader(headers);
+    headers = this.setAcceptHeader(headers);
     console.log('headers ', headers, 'options ', formattedOptions, 'url ', url)
 
     // Return formatted fetch request

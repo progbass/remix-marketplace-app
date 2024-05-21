@@ -21,18 +21,8 @@ import { useFetcherConfiguration } from "~/providers/FetcherConfigurationContext
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import ShoppingCart, { ShoppingCartType } from "~/utils/ShoppingCart";
 
-//
-const steps = [
-  { name: "Carrito", href: "/cart", status: "complete" },
-  {
-    name: "Dirección de envío",
-    href: "/checkout/shipping",
-    status: "current",
-  },
-  { name: "Confirmación", href: "/checkout/review", status: "upcoming" },
-];
-
-export let loader: LoaderFunction = async ({ request }) => {
+export let loader: LoaderFunction = async ({ request, params }) => {
+  //
   const fetcher = new Fetcher(null, request);
   const shoppingCart = await fetcher.fetch(`${getEnv().API_URL}/cart`, {
     method: "GET",
@@ -45,7 +35,10 @@ export let loader: LoaderFunction = async ({ request }) => {
     "shipping",
     JSON.stringify(shoppingCartInstance.getShipping())
   );
-  stripeIntentFormData.append("total", shoppingCartInstance.getTotal().toString());
+  stripeIntentFormData.append(
+    "total",
+    shoppingCartInstance.getTotal().toString()
+  );
 
   const stripePaymentIntent = await fetcher.fetch(
     `${getEnv().API_URL}/stripe/Installments`,
@@ -67,14 +60,14 @@ export let loader: LoaderFunction = async ({ request }) => {
 
 // Make sure to call `loadStripe` outside of a component’s render to avoid
 // recreating the `Stripe` object on every render.
-const stripePromise = loadStripe("pk_test_51LZfLsKgxTsOar06R9CimiLBdaPo3UDbeNrKHXP03bv8JFJDKje6Sn4tQlecYl33igJ6X6sV6NA6jn2yFU0YX4rl00RfSZNH53");
+const stripePromise = loadStripe(
+  "pk_test_51LZfLsKgxTsOar06R9CimiLBdaPo3UDbeNrKHXP03bv8JFJDKje6Sn4tQlecYl33igJ6X6sV6NA6jn2yFU0YX4rl00RfSZNH53"
+);
 
 export default function () {
   // Get loader data
-  const { stripeConfig, paymentIntent } = useLoaderData<typeof loader>();
-
-  // Shopping Cart
-  const ShoppingCartInstance = useShoppingCart();
+  const { stripeConfig, paymentIntent } =
+    useLoaderData<typeof loader>();
 
   // Render component
   return (
@@ -91,49 +84,13 @@ export default function () {
             aria-hidden="true"
           />
 
-          <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 bg-white">
-            <div className="flex justify-end sm:justify-center">
-              <nav aria-label="Progress" className="hidden sm:block">
-                <ol role="list" className="flex space-x-4">
-                  {steps.map((step, stepIdx) => (
-                    <li key={step.name} className="flex items-center">
-                      {step.status === "current" ||
-                      step.status === "complete" ? (
-                        <Link
-                          to={step.href}
-                          aria-current="page"
-                          className="text-indigo-600"
-                        >
-                          {step.name}
-                        </Link>
-                      ) : (
-                        <Link to={step.href}>{step.name}</Link>
-                      )}
-
-                      {stepIdx !== steps.length - 1 ? (
-                        <ChevronRightIcon
-                          className="ml-4 h-5 w-5 text-gray-300"
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-              </nav>
-              <p className="sm:hidden">Paso 2 de 4</p>
-            </div>
-          </div>
-
-          <div className="mt-10">
-            <h1 className="sr-only">Checkout</h1>
-            {!stripeConfig?.clientSecret
-              ? <Outlet context={paymentIntent} />
-              : 
-                <Elements stripe={stripePromise} options={stripeConfig}>
-                   {<Outlet context={paymentIntent} />}
-                </Elements>
-            }
-          </div>
+          {!stripeConfig?.clientSecret ? (
+            <Outlet context={paymentIntent} />
+          ) : (
+            <Elements stripe={stripePromise} options={stripeConfig}>
+              {<Outlet context={paymentIntent} />}
+            </Elements>
+          )}
         </div>
       }
     />

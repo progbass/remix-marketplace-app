@@ -1,73 +1,16 @@
-import { Link } from "@remix-run/react";
-import { useState } from "react";
+import { LoaderFunction, LoaderFunctionArgs } from "@remix-run/node";
+import { Link, useLoaderData } from "@remix-run/react";
+import { StarIcon } from '@heroicons/react/20/solid'
 
+import AuthService from "~/services/Auth.service";
+import { Fetcher } from "~/utils/fetcher";
+import getEnv from "get-env";
+import { Product } from "~/types/Product";
+import classNames from "~/utils/classNames";
 
-const trendingProducts = [
-  {
-    id: 1,
-    name: "Machined Pen",
-    color: "Black",
-    price: "$35",
-    href: "/product/123",
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-02-product-01.jpg",
-    imageAlt:
-      "Black machined steel pen with hexagonal grip and small white logo at top.",
-    availableColors: [
-      { name: "Black", colorBg: "#111827" },
-      { name: "Brass", colorBg: "#FDE68A" },
-      { name: "Chrome", colorBg: "#E5E7EB" },
-    ],
-  },
-  {
-    id: 2,
-    name: "Machined Pen",
-    color: "Black",
-    price: "$35",
-    href: "/product/123",
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-02-product-01.jpg",
-    imageAlt:
-      "Black machined steel pen with hexagonal grip and small white logo at top.",
-    availableColors: [
-      { name: "Black", colorBg: "#111827" },
-      { name: "Brass", colorBg: "#FDE68A" },
-      { name: "Chrome", colorBg: "#E5E7EB" },
-    ],
-  },
-  {
-    id: 3,
-    name: "Machined Pen",
-    color: "Black",
-    price: "$35",
-    href: "/product/123",
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-02-product-01.jpg",
-    imageAlt:
-      "Black machined steel pen with hexagonal grip and small white logo at top.",
-    availableColors: [
-      { name: "Black", colorBg: "#111827" },
-      { name: "Brass", colorBg: "#FDE68A" },
-      { name: "Chrome", colorBg: "#E5E7EB" },
-    ],
-  },
-  {
-    id: 4,
-    name: "Machined Pen",
-    color: "Black",
-    price: "$35",
-    href: "/product/123",
-    imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-02-product-01.jpg",
-    imageAlt:
-      "Black machined steel pen with hexagonal grip and small white logo at top.",
-    availableColors: [
-      { name: "Black", colorBg: "#111827" },
-      { name: "Brass", colorBg: "#FDE68A" },
-      { name: "Chrome", colorBg: "#E5E7EB" },
-    ],
-  },
-];
+import ProductListing from "~/components/ProductListing";
+import heroBannerImage from "~/statics/hero-banner1.png";
+
 const collections = [
   {
     name: "Desk and Office",
@@ -98,69 +41,58 @@ const collections = [
 ];
 const categories = [
   {
-    name: "New Arrivals",
+    name: "Moda",
     href: "#",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-01-category-01.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/6570d3629ab6e.jpg",
   },
   {
-    name: "Productivity",
+    name: "Vinos",
     href: "#",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-01-category-02.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/65bd256ea8128.jpg",
   },
   {
-    name: "Workspace",
+    name: "Hogar",
     href: "#",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-01-category-04.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/4ZcrIle6ph8aUozVDjYcxcU7BetDsC0Aq4BAgyVS.jpg",
   },
   {
-    name: "Accessories",
+    name: "Alimentos y Bebidas",
     href: "#",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-01-category-05.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/q9g9H1c86xQ8EtgZXwGgcGZ5ZddbbAqLLuJbESaG.jpg",
   },
   {
-    name: "Sale",
+    name: "Artesanías",
     href: "#",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-01-category-03.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/CXu36SwSMQleNu98PxuxYYqqYQDEgdYtoKELUIdQ.png",
   },
 ];
-const perks = [
-  {
-    name: "Free returns",
-    imageUrl:
-      "https://tailwindui.com/img/ecommerce/icons/icon-returns-light.svg",
-    description:
-      "Not what you expected? Place it back in the parcel and attach the pre-paid postage stamp.",
-  },
-  {
-    name: "Same day delivery",
-    imageUrl:
-      "https://tailwindui.com/img/ecommerce/icons/icon-calendar-light.svg",
-    description:
-      "We offer a delivery service that has never been done before. Checkout today and receive your products within hours.",
-  },
-  {
-    name: "All year discount",
-    imageUrl:
-      "https://tailwindui.com/img/ecommerce/icons/icon-gift-card-light.svg",
-    description:
-      'Looking for a deal? You can use the code "ALLYEAR" at checkout and get money off all year round.',
-  },
-  {
-    name: "For the planet",
-    imageUrl:
-      "https://tailwindui.com/img/ecommerce/icons/icon-planet-light.svg",
-    description:
-      "We’ve pledged 1% of sales to the preservation and restoration of the natural environment.",
-  },
-];
+
+export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => {
+  // If the user is already authenticated redirect to /dashboard directly
+  const user = (await AuthService.isAuthenticated(request)) || null;
+  const myFetcher = new Fetcher(user?.token, request);
+
+  // Get featured products
+  const featuredProducts = await myFetcher.fetch(`${getEnv().API_URL}/productsRandom`, {
+    method: "GET"
+  });
+
+  return {
+    featuredProducts: featuredProducts?.one || [],
+    trendyProducts: featuredProducts?.two || [],
+    discounts: featuredProducts?.three || [],
+  };
+}
 
 export default function HomePage() {
-
+  const { featuredProducts, trendyProducts, discounts } = useLoaderData<typeof loader>();
+  console.log("featuredProducts", featuredProducts);
+  // Return component
   return (
     <>
       {/* Hero */}
@@ -188,6 +120,7 @@ export default function HomePage() {
             </div>
           </nav> */}
 
+        {/*
         <div className="relative">
           <div
             aria-hidden="true"
@@ -224,175 +157,55 @@ export default function HomePage() {
             />
           </div>
         </div>
+        */}
       </div>
 
-      {/* Trending products */}
-      <section aria-labelledby="trending-heading" className="bg-white">
-        <div className="py-16 sm:py-24 lg:mx-auto lg:max-w-7xl lg:px-8 lg:py-32">
-          <div className="flex items-center justify-between px-4 sm:px-6 lg:px-0">
-            <h2
-              id="trending-heading"
-              className="text-2xl font-bold tracking-tight text-gray-900"
-            >
-              Trending products
-            </h2>
-            <a
-              href="#"
-              className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-500 sm:block"
-            >
-              See everything
-              <span aria-hidden="true"> &rarr;</span>
-            </a>
-          </div>
-
-          <div className="relative mt-8">
-            <div className="relative w-full overflow-x-auto">
-              <ul
-                role="list"
-                className="mx-4 inline-flex space-x-8 sm:mx-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-x-8 lg:space-x-0"
-              >
-                {trendingProducts.map((product) => (
-                  <li
-                    key={product.id}
-                    className="inline-flex w-64 flex-col text-center lg:w-auto"
-                  >
-                    <div className="group relative">
-                      <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md bg-gray-200">
-                        <img
-                          src={product.imageSrc}
-                          alt={product.imageAlt}
-                          className="h-full w-full object-cover object-center group-hover:opacity-75"
-                        />
-                      </div>
-                      <div className="mt-6">
-                        <p className="text-sm text-gray-500">{product.color}</p>
-                        <h3 className="mt-1 font-semibold text-gray-900">
-                          <Link to={product.href}>
-                            <span className="absolute inset-0" />
-                            {product.name}
-                          </Link>
-                        </h3>
-                        <p className="mt-1 text-gray-900">{product.price}</p>
-                      </div>
-                    </div>
-
-                    <h4 className="sr-only">Available colors</h4>
-                    <ul
-                      role="list"
-                      className="mt-auto flex items-center justify-center space-x-3 pt-6"
-                    >
-                      {product.availableColors.map((color) => (
-                        <li
-                          key={color.name}
-                          className="h-4 w-4 rounded-full border border-black border-opacity-10"
-                          style={{ backgroundColor: color.colorBg }}
-                        >
-                          <span className="sr-only">{color.name}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
+      <section
+        aria-labelledby="featured-heading"
+        className="hidden lg:block"
+      >
+        <div className="overflow-hidden md:mx-auto md:max-w-7xl md:px-8 md:py-12">
+          <div className="relative overflow-hidden rounded-md md:h-40 py-16 md:py-52">
+            <div className="absolute inset-0">
+              <img
+                src={heroBannerImage}
+                // src="https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/65b2c89d0eb5d.jpg"
+                alt=""
+                className="h-full w-full object-cover object-center"
+              />
             </div>
-          </div>
-
-          <div className="mt-12 px-4 sm:hidden">
-            <a
-              href="#"
-              className="text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-            >
-              See everything
-              <span aria-hidden="true"> &rarr;</span>
-            </a>
+            <div aria-hidden="true" className="relative h-40 w-full md:hidden" />
+            <div aria-hidden="true" className="relative h-52 w-full md:hidden" />
+            <div className="absolute inset-x-0 bottom-0 rounded-bl-lg rounded-br-lg bg-black bg-opacity-75 p-6 backdrop-blur backdrop-filter sm:flex sm:items-center sm:justify-between md:inset-x-auto md:inset-y-0 md:w-72 md:flex-col md:items-start md:rounded-bl-none md:rounded-tr-lg md:right-0">
+              <div>
+                <h2 id="featured-heading" className="text-xl font-bold text-white">
+                  Diseño en moda mexicanos
+                </h2>
+                <p className="mt-1 text-sm text-gray-300">
+                  Upgrade your desk with objects that keep you organized and
+                  clear-minded.
+                </p>
+              </div>
+              <a
+                href="#"
+                className="mt-6 flex flex-shrink-0 items-center justify-center rounded-md border border-white border-opacity-25 bg-white bg-opacity-0 px-4 py-3 text-base font-medium text-white hover:bg-opacity-10 sm:ml-8 sm:mt-0 lg:ml-0 lg:w-full"
+              >
+                Descúbrelo aquí
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Trending products 2 */}
-      <section aria-labelledby="trending-heading" className="bg-white">
-        <div className="py-16 sm:py-24 lg:mx-auto lg:max-w-7xl lg:px-8 lg:py-32">
-          <div className="flex items-center justify-between px-4 sm:px-6 lg:px-0">
-            <h2
-              id="trending-heading"
-              className="text-2xl font-bold tracking-tight text-gray-900"
-            >
-              Trending products
-            </h2>
-            <a
-              href="#"
-              className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-500 sm:block"
-            >
-              See everything
-              <span aria-hidden="true"> &rarr;</span>
-            </a>
-          </div>
+      {/* TRENDING PRODUCTS */}
+      <ProductListing items={featuredProducts} title="Productos destacados" />
 
-          <div className="relative mt-8">
-            <div className="relative w-full overflow-x-auto">
-              <ul
-                role="list"
-                className="mx-4 inline-flex space-x-8 sm:mx-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-x-8 lg:space-x-0"
-              >
-                {trendingProducts.map((product) => (
-                  <li
-                    key={product.id}
-                    className="inline-flex w-64 flex-col text-center lg:w-auto"
-                  >
-                    <div className="group relative">
-                      <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md bg-gray-200">
-                        <img
-                          src={product.imageSrc}
-                          alt={product.imageAlt}
-                          className="h-full w-full object-cover object-center group-hover:opacity-75"
-                        />
-                      </div>
-                      <div className="mt-6">
-                        <p className="text-sm text-gray-500">{product.color}</p>
-                        <h3 className="mt-1 font-semibold text-gray-900">
-                          <Link to={product.href}>
-                            <span className="absolute inset-0" />
-                            {product.name}
-                          </Link>
-                        </h3>
-                        <p className="mt-1 text-gray-900">{product.price}</p>
-                      </div>
-                    </div>
+      {/* POPULAR PRODUCTS 2 */}
+      <ProductListing items={trendyProducts} title="Productos populares" />
 
-                    <h4 className="sr-only">Available colors</h4>
-                    <ul
-                      role="list"
-                      className="mt-auto flex items-center justify-center space-x-3 pt-6"
-                    >
-                      {product.availableColors.map((color) => (
-                        <li
-                          key={color.name}
-                          className="h-4 w-4 rounded-full border border-black border-opacity-10"
-                          style={{ backgroundColor: color.colorBg }}
-                        >
-                          <span className="sr-only">{color.name}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-12 px-4 sm:hidden">
-            <a
-              href="#"
-              className="text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-            >
-              See everything
-              <span aria-hidden="true"> &rarr;</span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Collections */}
+      {/* DISCOUNTS AND PROMOTIONS */}
+      <ProductListing items={discounts} title="Ofertas y descuentos" />
+      {/* COLLECTIONS */}
       <section aria-labelledby="collections-heading" className="bg-gray-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl py-16 sm:py-24 lg:max-w-none lg:py-32">
@@ -400,7 +213,7 @@ export default function HomePage() {
               id="collections-heading"
               className="text-2xl font-bold text-gray-900"
             >
-              Collections
+              Colecciones
             </h2>
 
             <div className="mt-6 space-y-12 lg:grid lg:grid-cols-3 lg:gap-x-6 lg:space-y-0">
@@ -429,6 +242,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* CATEGORIES */}
       <section
         aria-labelledby="category-heading"
         className="pt-24 sm:pt-32 xl:mx-auto xl:max-w-7xl xl:px-8"
@@ -438,13 +252,13 @@ export default function HomePage() {
             id="category-heading"
             className="text-2xl font-bold tracking-tight text-gray-900"
           >
-            Shop by Category
+            Explora por categoría
           </h2>
           <a
             href="#"
             className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-500 sm:block"
           >
-            Browse all categories
+            Todas las categorías
             <span aria-hidden="true"> &rarr;</span>
           </a>
         </div>
@@ -485,52 +299,53 @@ export default function HomePage() {
             href="#"
             className="block text-sm font-semibold text-indigo-600 hover:text-indigo-500"
           >
-            Browse all categories
+            Todas las categorías
             <span aria-hidden="true"> &rarr;</span>
           </a>
         </div>
       </section>
 
+      {/* ABOUT SECTION */}
+      <section className="mx-auto mt-32 max-w-7xl px-6 sm:mt-40 lg:px-8">
+        <div className="mx-auto max-w-4xl lg:text-center">
+          <h2 className="text-base font-semibold leading-7 text-indigo-600">Lo mejor de México</h2>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+          México Limited
+          </p>
+          <p className="mt-6 text-lg leading-8 text-gray-600">
+          Impulsamos el talento y la innovación mexicanos para fomentar y reflejar la riqueza cultural, la creatividad y el talento del país. 
+          Conectamos a vendedores y compradores que valoran la autenticidad, la calidad y la innovación del emprendimiento mexicano, fomentando el desarrollo del comercio local y nacional.
+          </p>
+        </div>
+        <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
+          <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
+            {[].map((feature) => (
+              <div key={feature.name} className="flex flex-col">
+                <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
+                  <feature.icon className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
+                  {feature.name}
+                </dt>
+                <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
+                  <p className="flex-auto">{feature.description}</p>
+                  <p className="mt-6">
+                    <a href={feature.href} className="text-sm font-semibold leading-6 text-indigo-600">
+                      Learn more <span aria-hidden="true">→</span>
+                    </a>
+                  </p>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* SELLERS CALL TO ACTION */}
       <section
         aria-labelledby="extras-heading"
         // className="border-t border-gray-200 bg-gray-50"
       >
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-24 lg:px-8">
-          <div className="grid grid-cols-1 gap-y-2 sm:grid-cols-2 sm:gap-x-6 ">
-            {/* <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 xl:gap-x-8"> */}
-            <div className="flex items-center rounded-lg bg-gray-100 p-6 sm:p-10">
-              <div className="mx-auto max-w-sm">
-                <h3 className="font-semibold text-gray-900">
-                  Sign up for our newsletter
-                </h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  The latest news, articles, and resources, sent to your inbox
-                  weekly.
-                </p>
-                <form className="mt-4 sm:mt-6 sm:flex">
-                  <label htmlFor="email-address" className="sr-only">
-                    Email address
-                  </label>
-                  <input
-                    id="email-address"
-                    type="text"
-                    autoComplete="email"
-                    required
-                    className="w-full min-w-0 appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-base text-gray-900 placeholder-gray-500 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <div className="mt-3 sm:ml-4 sm:mt-0 sm:flex-shrink-0">
-                    <button
-                      type="submit"
-                      className="flex w-full items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-white"
-                    >
-                      Sign up
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <div className="relative mt-6 flex items-center px-6 py-12 sm:px-10 sm:py-16 sm:mt-0">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+            <div className="relative flex items-center px-6 py-12 sm:px-10 sm:py-16 sm:mt-0">
               <div className="absolute inset-0 overflow-hidden rounded-lg">
                 <img
                   src="https://tailwindui.com/img/ecommerce-images/footer-02-exclusive-sale.jpg"
@@ -539,28 +354,26 @@ export default function HomePage() {
                 />
                 <div className="absolute inset-0 bg-indigo-600 bg-opacity-90" />
               </div>
-              <div className="relative mx-auto max-w-sm text-center">
+              <div className="relative mx-auto max-w-2xl text-center">
                 <h3 className="text-2xl font-bold tracking-tight text-white">
-                  Get early access
+                  ¿Eres creador o emprendes con productos increíbles?
                 </h3>
                 <p className="mt-2 text-gray-200">
-                  Did you sign up to the newsletter? If so, use the keyword we
-                  sent you to get access.{" "}
+                   Únete a México Limited y lleva tu negocio al siguiente nivel. Conecta con potenciales clientes, expande tu alcance y aumenta tu probabilidad de ventas.{" "}
                   <a
                     href="#"
                     className="whitespace-nowrap font-bold text-white hover:text-gray-200"
                   >
-                    Go now<span aria-hidden="true"> &rarr;</span>
+                    Conoce más<span aria-hidden="true"> &rarr;</span>
                   </a>
                 </p>
               </div>
             </div>
-          </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section
+      {/* <section
         aria-labelledby="perks-heading"
         className="border-t border-gray-200 bg-gray-50"
       >
@@ -596,7 +409,7 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
     </>
   );
 }

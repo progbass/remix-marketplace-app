@@ -3,13 +3,11 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import {
   useLoaderData,
   useActionData,
-  useOutletContext
+  useOutletContext,
+  Link,
 } from "@remix-run/react";
 import { redirect } from "@remix-run/node";
-import {
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
+import { useStripe, useElements } from "@stripe/react-stripe-js";
 
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
 
@@ -27,14 +25,32 @@ import ReviewForm from "./ReviewForm";
 import ThankYou from "./ThankYou";
 import ShoppingCart from "~/utils/ShoppingCart";
 import DialogOverlay from "~/components/DialogOverlay";
-import { useFetcher } from "react-router-dom";
+import { useFetcher } from "@remix-run/react";
 
 //
 const STRIPE_REDIRECT_URL = "http://localhost:3000/purchase";
 
 //
+const checkoutStepsModel = [
+  { name: "Carrito", href: "/cart", status: "upcoming", slug: "cart" },
+  {
+    name: "Dirección de envío",
+    href: "/checkout/shipping",
+    status: "upcoming",
+    slug: "shipping",
+  },
+  {
+    name: "Confirmación",
+    href: "/checkout/review",
+    status: "upcoming",
+    slug: "review",
+  },
+];
+
+//
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const cartStep = params.step;
+  let checkoutSteps = checkoutStepsModel;
 
   // Config custom data fetcher
   const fetcher = new Fetcher(null, request);
@@ -42,13 +58,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Fetch the shopping cart
   const shoppingCart = await fetcher.fetch(`${getEnv().API_URL}/cart`, {
     method: "GET",
-  });  
+  });
   let shippingQuotes = [];
 
   // If the shopping cart is empty, redirect to the cart page
-  console.log('shoppingCart ', shoppingCart.cart.length)
   if (shoppingCart?.cart && shoppingCart?.cart.length === 0) {
-    // return redirect("/cart");
+    return redirect("/cart");
   }
 
   // If there's no shipping address information, redirect to the shipping page
@@ -59,10 +74,28 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Control behavior based on the current cart/checkout step
   switch (cartStep) {
     case "shipping":
+      checkoutSteps = checkoutStepsModel.map((step) => {
+        if (step.slug === "shipping") {
+          return {
+            ...step,
+            status: "current",
+          };
+        }
+        if(step.slug === "review"){
+          return {
+            ...step,
+            status: "upcoming",
+          };
+        }
+        return {
+          ...step,
+          status: "complete",
+        };
+      });
+
       console.log("loading shipping step ", shoppingCart);
       break;
     case "review":
-      console.log("loading review step ", shoppingCart);
       const ShoppingCartInstance = new ShoppingCart(shoppingCart);
 
       // Define necessary data to request shipping quotes
@@ -78,7 +111,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       formData.append("user[state_id]", shoppingCart.shipping.state_id);
       formData.append("user[zipcode]", shoppingCart.shipping.zipcode);
       formData.append("user[neighborhood]", shoppingCart.shipping.neighborhood);
-      formData.append("products", JSON.stringify(ShoppingCartInstance.getProducts()));
+      formData.append(
+        "products",
+        JSON.stringify(ShoppingCartInstance.getProducts())
+      );
 
       // Get shipping quotes
       const shippingQuotesResponse = await fetcher
@@ -91,11 +127,33 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           // throw new Error("Error fetching distance data");
           return;
         });
-        shippingQuotes = shippingQuotesResponse;
+      shippingQuotes = shippingQuotesResponse;
+
+      console.log("shippingQuotesResponse ", shippingQuotesResponse);
+
+      // Redirect to shipping page if there are no shipping quotes
+      if (
+        !shippingQuotesResponse ||
+        !shippingQuotesResponse?.deliveries.length
+      ) {
+        return redirect("/checkout/shipping");
+      }
+
+      checkoutSteps = checkoutStepsModel.map((step) => {
+        if (step.slug === "review") {
+          return {
+            ...step,
+            status: "current",
+          };
+        }
+        return {
+          ...step,
+          status: "complete",
+        };
+      });
       break;
 
     default:
-    // return redirect("/cart");
   }
 
   // Get the states list
@@ -110,7 +168,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   return {
     statesList: statesResponse,
     cartStep,
-    shippingQuotes
+    checkoutSteps,
+    shippingQuotes,
+    shoppingCart,
   };
 }
 
@@ -160,7 +220,7 @@ export let action = async ({ request }: ActionFunctionArgs) => {
 
     case "setShippingMethod":
       // Set shipping method
-      const shippingMethod = await fetcher
+      const updatedShoppingCart = await fetcher
         .fetch(`${getEnv().API_URL}/cart`, {
           method: "POST",
           body: formData,
@@ -175,9 +235,11 @@ export let action = async ({ request }: ActionFunctionArgs) => {
         });
 
       // Return data
-      console.log("Updated shipping method ", shippingMethod);
-      return null;
-      
+      console.log("Updated shipping method ", updatedShoppingCart);
+      return {
+        cart: updatedShoppingCart,
+      };
+
     case "review":
       // Process payment
       const orderPayment = await fetcher
@@ -194,15 +256,17 @@ export let action = async ({ request }: ActionFunctionArgs) => {
           });
         });
 
+      console.log("ORDER PAYMENT REFERENCE ", orderPayment);
+
       // Return data
       return {
         step: "review",
         errors,
-        order: orderPayment,
-      }
+        purchase: orderPayment,
+      };
 
     default:
-    return redirect("/cart");
+      return redirect("/cart");
   }
 
   // If the errors object has any properties, that means the form didn't validate
@@ -219,7 +283,8 @@ export default function CheckoutPage() {
   const formReference = useRef(null);
 
   // Loader data
-  const { cartStep, statesList, shippingQuotes } = useLoaderData<typeof loader>();
+  const { cartStep, checkoutSteps, statesList, shippingQuotes, shoppingCart } =
+    useLoaderData<typeof loader>();
 
   // Form fetcher
   const checkoutForm = useFetcher();
@@ -250,6 +315,7 @@ export default function CheckoutPage() {
 
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
+  ShoppingCartInstance.setCart(shoppingCart, false);
   ShoppingCartInstance.setShippingQuotes(shippingQuotes?.deliveries || []);
 
   // Determine corresponding UI form
@@ -260,9 +326,6 @@ export default function CheckoutPage() {
       break;
     case "review":
       CartStepForm = ReviewForm;
-      break;
-    case "thank-you":
-      CartStepForm = ThankYou;
       break;
     default:
   }
@@ -313,29 +376,25 @@ export default function CheckoutPage() {
     }
   }
   useEffect(() => {
-    // if (actionData.data.payment_error) {
-    //   console.log("actionData", actionData.data.payment_error);
-    //   setErrorModalDisplay(true);
-    // }
-    if(
+    if (
       checkoutForm.state === "idle" &&
-      checkoutForm.data?.step == "review" 
-      && checkoutForm.data?.order.type == "success"
-    ){
+      checkoutForm.data?.step == "review" &&
+      checkoutForm.data?.purchase.type == "success"
+    ) {
       // Confirm stripe payment
-      handlePaymentConfirmation(checkoutForm.data?.order);
+      handlePaymentConfirmation(checkoutForm.data?.purchase);
     }
-  } , [checkoutForm]);
+  }, [checkoutForm]);
 
   // Confirm payment
-  const handlePaymentConfirmation = async (order) => {
+  const handlePaymentConfirmation = async (purchase) => {
     setIsLoading(true);
 
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         // Make sure to change this to your payment completion page
-        return_url: `${STRIPE_REDIRECT_URL}/${order.id}/success`,
+        return_url: `${STRIPE_REDIRECT_URL}/${purchase.id}/success`,
       },
     });
 
@@ -353,13 +412,51 @@ export default function CheckoutPage() {
     setIsLoading(false);
   };
 
+  // Determine form completion
+  const [isFormCompleted, setIsFormCompleted] = useState(false);
+  const handleFormComplete = (formCompleted: boolean) => {
+    console.log("Form complete ", formCompleted);
+    setIsFormCompleted(formCompleted);
+  };
+
   // Render component
   return (
     <>
-      {/* Checkout Step */}
-      {cartStep === "thank-you" ? (
-        <ThankYou />
-      ) : (
+      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 bg-white">
+        <div className="flex justify-end sm:justify-center">
+          <nav aria-label="Progress" className="hidden sm:block">
+            <ol role="list" className="flex space-x-4">
+              {checkoutSteps.map((step, stepIdx) => (
+                <li key={step.name} className="flex items-center">
+                  {step.status === "current" || step.status === "complete" ? (
+                    <Link
+                      to={step.href}
+                      aria-current="page"
+                      className="text-indigo-600"
+                    >
+                      {step.name}
+                    </Link>
+                  ) : 
+                    (step.name)
+                  }
+
+                  {stepIdx !== checkoutSteps.length - 1 ? (
+                    <ChevronRightIcon
+                      className="ml-4 h-5 w-5 text-gray-300"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          </nav>
+          <p className="sm:hidden">Paso 2 de 3</p>
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <h1 className="sr-only">Checkout</h1>
+        {/* Checkout Step */}
         <checkoutForm.Form
           ref={formReference}
           method="post"
@@ -367,21 +464,31 @@ export default function CheckoutPage() {
           className="relative mx-auto grid max-w-7xl grid-cols-1 gap-x-16 lg:grid-cols-2 px-8 xl:gap-x-48"
         >
           <input type="hidden" name="step" defaultValue={cartStep} />
-          <input type="hidden" name="order[payment_intent_id]" defaultValue={paymentId || ''} />
+          <input
+            type="hidden"
+            name="order[payment_intent_id]"
+            defaultValue={paymentId || ""}
+          />
 
           <div>
-            <CartStepForm addressStatesList={statesList} />
+            <CartStepForm
+              formRef={formReference}
+              formFetcher={checkoutForm}
+              addressStatesList={statesList}
+              onFormCompleted={handleFormComplete}
+            />
           </div>
 
           <OrderSummary
             cartStep={cartStep}
             checkoutForm={checkoutForm}
             checkoutFormRef={formReference}
+            isFormCompleted={isFormCompleted}
             onProductRemove={handleProductRemove}
             onProductQuantityChange={handleProductQuantityChange}
           />
         </checkoutForm.Form>
-      )}
+      </div>
 
       {/* Error Modal */}
       {errorModalDisplay && (

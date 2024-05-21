@@ -2,8 +2,14 @@ import { Link, useLoaderData, useFetcher } from "@remix-run/react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Fragment, useState, useEffect } from "react";
-import { Tab } from "@headlessui/react";
-import { StarIcon } from "@heroicons/react/20/solid";
+import { StarIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
+import {
+  Dialog,
+  Popover,
+  RadioGroup,
+  Tab,
+  Transition,
+} from "@headlessui/react";
 
 import type { ProductVariation } from "~/types/ProductVariation";
 import type { Product } from "~/types/Product";
@@ -14,23 +20,10 @@ import AuthService from "~/services/Auth.service";
 import getEnv from "get-env";
 import { Fetcher } from "~/utils/fetcher";
 import SelectBox from "~/components/SelectBox";
+import DialogOverlay from "~/components/DialogOverlay";
+import ProductThumbnail from "~/components/ProductThumbnail";
+import { formatPrice } from "~/utils/formatPrice";
 
-const productBase = {
-  name: "Application UI Icon Pack",
-  version: { name: "1.0", date: "June 5, 2021", datetime: "2021-06-05" },
-  price: "$220",
-  description:
-    "The Application UI Icon Pack comes with over 200 icons in 3 styles: outline, filled, and branded. This playful icon pack is tailored for complex application user interfaces with a friendly and legible look.",
-  highlights: [
-    "200+ SVG icons in 3 unique styles",
-    "Compatible with Figma, Sketch, and Adobe XD",
-    "Drawn on 24 x 24 pixel grid",
-  ],
-  imageSrc:
-    "https://tailwindui.com/img/ecommerce-images/product-page-05-product-01.jpg",
-  imageAlt:
-    "Sample of 30 icons with friendly and fun details in outline, filled, and brand color styles.",
-};
 const reviews = {
   average: 4,
   featured: [
@@ -74,37 +67,10 @@ const faqs = [
   },
   // More FAQs...
 ];
-const license = {
-  href: "#",
-  summary:
-    "For personal and professional use. You cannot resell or redistribute these icons in their original or modified state.",
-  content: `
-      <h4>Overview</h4>
-      
-      <p>For personal and professional use. You cannot resell or redistribute these icons in their original or modified state.</p>
-      
-      <ul role="list">
-      <li>You\'re allowed to use the icons in unlimited projects.</li>
-      <li>Attribution is not required to use the icons.</li>
-      </ul>
-      
-      <h4>What you can do with it</h4>
-      
-      <ul role="list">
-      <li>Use them freely in your personal and professional work.</li>
-      <li>Make them your own. Change the colors to suit your project or brand.</li>
-      </ul>
-      
-      <h4>What you can\'t do with it</h4>
-      
-      <ul role="list">
-      <li>Don\'t be greedy. Selling or distributing these icons in their original or modified state is prohibited.</li>
-      <li>Don\'t be evil. These icons cannot be used on websites or applications that promote illegal or immoral beliefs or activities.</li>
-      </ul>
-    `,
-};
+const MAX_STOCK_ITEMS = 10;
 
-export async function loader ({ request, params }: LoaderFunctionArgs) {
+// Loader function
+export async function loader({ request, params }: LoaderFunctionArgs) {
   // Attempt to get the user from the session
   const user = await AuthService.getCurrentUser({ request }).catch((err) => {
     console.log(err);
@@ -121,12 +87,15 @@ export async function loader ({ request, params }: LoaderFunctionArgs) {
     .catch((err) => {
       console.log(err);
       // throw new Error("Error fetching product data");
-      error = null;
+      error = err;
     });
 
   // Return 404 if product not found
-  if (error || !productDetails) {
-    return redirect("404", 404);
+  if (!productDetails || error) {
+    throw new Response(null, {
+      status: 404,
+      statusText: "Producto no encontrado",
+    });
   }
 
   // Get related products
@@ -137,7 +106,7 @@ export async function loader ({ request, params }: LoaderFunctionArgs) {
     .catch((err) => {
       console.log(err);
       // throw new Error("Error fetching product data");
-      error = null;
+      error = err;
     });
 
   // Return loader data
@@ -149,7 +118,9 @@ export async function loader ({ request, params }: LoaderFunctionArgs) {
     relatedProducts: relatedProducts || [],
   };
 }
-export async function action ({ request }: ActionFunctionArgs) {
+
+// Action function
+export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const action = formData.get("action");
 
@@ -165,10 +136,9 @@ export async function action ({ request }: ActionFunctionArgs) {
       // Update shopping cart
       const myFetcher = new Fetcher(null, request);
       const shoppingCartItems = await myFetcher
-        .fetch(`${getEnv().API_URL}/cart/add`, 
-        { 
+        .fetch(`${getEnv().API_URL}/cart/add`, {
           method: "POST",
-          body: formData 
+          body: formData,
         })
         .catch((err) => {
           console.log(err);
@@ -177,7 +147,7 @@ export async function action ({ request }: ActionFunctionArgs) {
       // Return response
       return json({
         errors: null,
-        cart: shoppingCartItems
+        cart: shoppingCartItems,
       });
     }
 
@@ -186,74 +156,208 @@ export async function action ({ request }: ActionFunctionArgs) {
       throw new Response("Bad Request", { status: 400 });
     }
   }
-};
+}
 
+// Main component
 export default function ProductPage() {
   // Shopping cart
   const ShoppingCart = useShoppingCart();
+
+  // Confirmation modal
+  const [modalDisplay, setModalDisplay] = useState(false);
 
   // Add-To-Cart Form
   const addToCartForm = useFetcher<typeof action>();
   // Update shopping cart when form has changed
   useEffect(() => {
-    if (
-      addToCartForm.state === "idle" &&
-      addToCartForm.data
-    ) {
+    if (addToCartForm.state === "idle" && addToCartForm.data) {
+      // Update shopping cart
       ShoppingCart.setCart(addToCartForm.data.cart);
+
+      // Display confirmation modal
+      setModalDisplay(true);
     }
   }, [addToCartForm]);
-  
+
   // Product details
-  const { product: productDetails, relatedProducts } =
-    useLoaderData<typeof loader>();
-  const product: Product = { ...productDetails };
+  const { product, relatedProducts } = useLoaderData<typeof loader>();
+
+  // Product type
+  const PRODUCT_VARIATION_TYPES = {
+    UNIQUE: "productunique",
+    SIZE_MODELS: "sizesmodels",
+    MODELS: "models",
+  };
+  const productVariationType = product.stocktype;
+
+  // Update selected product variation when product changes
+  useEffect(() => {
+    console.log("Product has changed");
+    setSelectedProductVariation(
+      productVariationType !== PRODUCT_VARIATION_TYPES.UNIQUE
+        ? product.models[0]
+        : null
+    );
+  }, [product]);
+
+  // Selected product variation
+  const [selectedProductVariation, setSelectedProductVariation] = useState(
+    productVariationType !== PRODUCT_VARIATION_TYPES.UNIQUE
+      ? product.models[0]
+      : null
+  );
+  function selectedProductVariationChangeHandler(
+    selectedVariation: ProductVariation
+  ) {
+    setSelectedQuantity({ id: 1, name: "1" });
+    setSelectedProductVariation(selectedVariation);
+  }
+
+  // Selected product gallery
+  const selectedProductVariationGallery = selectedProductVariation
+    ? [selectedProductVariation.imageUrl]
+    : product.gallery;
+
+  // Selected product description
+  const selectedProductVariationDescription = selectedProductVariation
+    ? selectedProductVariation.description
+    : product.short_description;
+
+  // Selected product stock
+  const selectedProductVariationMaxStock = selectedProductVariation
+    ? selectedProductVariation.stock
+    : product.stock;
 
   // Form state
-  const maxStockItems = productDetails.stock;
-  let stockSelectboxOptionsList = [];
-  for (let i = 1; i <= maxStockItems; i++) {
-    stockSelectboxOptionsList.push({ id: i, name: i.toString() });
+  let stockOptionsList = [];
+  for (
+    let i = 1;
+    i <= selectedProductVariationMaxStock && i <= MAX_STOCK_ITEMS;
+    i++
+  ) {
+    stockOptionsList.push({ id: i, name: i.toString() });
   }
-  stockSelectboxOptionsList = stockSelectboxOptionsList.slice(0, 10);
   const [selectedQuantity, setSelectedQuantity] = useState<{
     id: string | number | null;
     name: string;
   }>({ id: 1, name: "1" });
+
+  // Validate form
+  function validateForm(e) {
+    console.log("Validating form");
+    console.log("selectedProductVariation", selectedProductVariation);
+    console.log("selectedQuantity", selectedQuantity);
+    console.log(
+      "selectedProductVariationMaxStock",
+      selectedProductVariationMaxStock
+    );
+    console.log("productVariationType", productVariationType);
+
+    // If the product has models, validate that a model has been selected
+    if (
+      productVariationType !== PRODUCT_VARIATION_TYPES.UNIQUE &&
+      !selectedProductVariation
+    ) {
+      alert("Por favor selecciona un modelo");
+      e.preventDefault();
+      return;
+    }
+
+    if (!selectedQuantity?.id || parseInt(`${selectedQuantity?.id}`) < 1) {
+      alert("Selecciona una cantidad válida");
+      e.preventDefault();
+      return;
+    }
+
+    // If the product has a greater quantity than the max available stock
+    if (selectedQuantity?.id > selectedProductVariationMaxStock) {
+      alert("No hay suficiente stock para el modelo seleccionado");
+      e.preventDefault();
+      return;
+    }
+  }
+
+  console.log("product", selectedProductVariationGallery);
 
   // Return main component
   return (
     <div className="mx-auto px-4 pb-24 pt-14 sm:px-6 sm:pb-32 sm:pt-16 lg:max-w-7xl lg:px-8">
       {/* Product */}
       <div className="lg:grid lg:grid-cols-7 lg:grid-rows-1 lg:gap-x-8 lg:gap-y-10 xl:gap-x-16">
-        {/* Product image */}
+        {/* IMAGE GALLERY */}
         <div className="lg:col-span-4 lg:row-end-1">
-          <div className="aspect-h-3 aspect-w-4 overflow-hidden rounded-lg bg-gray-100">
-            <img
-              src={product?.gallery ? product?.gallery[0] : undefined}
-              alt={product.name}
-              className="object-cover object-center"
-            />
-          </div>
+          <Tab.Group as="div" className="flex flex-col-reverse">
+            {/* Image selector */}
+            <div className="mx-auto mt-6 w-full max-w-2xl lg:max-w-none">
+              <Tab.List className="grid grid-cols-4 gap-6">
+                {selectedProductVariationGallery.map((image, imageIndex) => (
+                  <Tab
+                    key={imageIndex}
+                    className="relative flex h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4"
+                  >
+                    {({ selected }) => (
+                      <>
+                        {/* <span className="sr-only">{image.name}</span> */}
+                        <span className="absolute inset-0 overflow-hidden rounded-md">
+                          <img
+                            src={image}
+                            alt=""
+                            className="h-full w-full object-cover object-center"
+                          />
+                        </span>
+                        <span
+                          className={classNames(
+                            selected
+                              ? "ring-secondary-500"
+                              : "ring-transparent",
+                            "pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2"
+                          )}
+                          aria-hidden="true"
+                        />
+                      </>
+                    )}
+                  </Tab>
+                ))}
+              </Tab.List>
+            </div>
+
+            <Tab.Panels className="aspect-h-1 aspect-w-1 w-full">
+              {selectedProductVariationGallery.map((image, imageIndex) => (
+                <Tab.Panel key={imageIndex}>
+                  <img
+                    src={image}
+                    alt={product.name}
+                    className="h-full w-full object-contain object-center sm:rounded-lg"
+                  />
+                </Tab.Panel>
+              ))}
+            </Tab.Panels>
+          </Tab.Group>
         </div>
 
-        {/* Product details */}
+        {/* PRODUCT DETAILS */}
         <div className="mx-auto mt-14 max-w-2xl sm:mt-16 lg:col-span-3 lg:row-span-2 lg:row-end-2 lg:mt-0 lg:max-w-none">
           <div className="flex flex-col-reverse">
-            <div className="mt-4">
-              <Link to={`/shop/${704}`} className="text-sm text-gray-500">
+            <div className="mt-2">
+              <Link
+                to={`/store/${product.users_id}`}
+                className="text-sm text-gray-500"
+              >
                 {product.entrepreneur}
               </Link>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
                 {product.name}
               </h1>
+              <p className="mt-2 text-sm text-gray-500">
+                {product.entrepreneur_state}
+              </p>
 
               <p className="mt-4 text-3xl tracking-tight text-gray-900">
-                MXN ${product.price}
+                MXN {formatPrice(product.price)}
               </p>
             </div>
 
-            <div>
+            {/* <div>
               <h3 className="sr-only">Reviews</h3>
               <div className="flex items-center">
                 {[0, 1, 2, 3, 4].map((rating) => (
@@ -269,31 +373,93 @@ export default function ProductPage() {
                   />
                 ))}
               </div>
-              <p className="sr-only">{reviews.average} out of 5 stars</p>
-            </div>
+              <p className="sr-only">{reviews.average} de 5 estrellas</p>
+            </div> */}
           </div>
 
-          <p className="mt-6 text-gray-500">{product.short_description}</p>
+          {/* SIZE & MODELS */}
+          {productVariationType != PRODUCT_VARIATION_TYPES.UNIQUE && (
+            <div className="mt-8">
+              <h2 className="text-sm font-medium text-gray-900">
+                Tallas / Modelos
+              </h2>
 
+              <RadioGroup
+                defaultValue={selectedProductVariation}
+                onChange={selectedProductVariationChangeHandler}
+                className="mt-2"
+              >
+                <RadioGroup.Label className="sr-only">
+                  Elige un modelo
+                </RadioGroup.Label>
+                <div className="grid grid-cols-3 gap-3">
+                  {product.models.map((size) => (
+                    <RadioGroup.Option
+                      key={size.id}
+                      value={size}
+                      className={({ active, checked }) =>
+                        classNames(
+                          size.stock
+                            ? "cursor-pointer focus:outline-none"
+                            : "cursor-not-allowed opacity-25",
+                          active ? "ring-2 ring-primary-500 ring-offset-2" : "",
+                          checked
+                            ? "border-transparent bg-primary-600 text-white hover:bg-primary-700"
+                            : "border-gray-200 bg-white text-gray-900 hover:bg-gray-50",
+                          "flex sm:flex-1 items-center justify-center rounded-md border py-3 px-3 text-sm font-medium uppercase "
+                        )
+                      }
+                      disabled={!size.stock}
+                    >
+                      <RadioGroup.Label as="span">
+                        {size.size || ""}
+                        {size.size && size.model ? " / " : ""}
+                        {size.model || ""}
+                      </RadioGroup.Label>
+                    </RadioGroup.Option>
+                  ))}
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
+          {/* PRODUCT SHORT DESCRIPTION */}
+          {product.short_description != null && (
+            <div className="mt-10">
+              <h2 className="text-sm font-medium text-gray-900">Descripción</h2>
+              <p className="mt-2 text-gray-500">
+                {selectedProductVariationDescription}
+              </p>
+            </div>
+          )}
+
+          {/* ADD TO CART FORM */}
           <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-            <addToCartForm.Form method="post" >
-              <input
-                type="hidden"
-                name="id"
-                defaultValue={String(product.id)}
-              />
+            <addToCartForm.Form method="post">
               <input
                 type="hidden"
                 name="users_id"
                 defaultValue={String(product.users_id)}
               />
+              <input
+                type="hidden"
+                name="id"
+                defaultValue={String(product.id)}
+              />
+              {productVariationType != PRODUCT_VARIATION_TYPES.UNIQUE && (
+                <input
+                  type="hidden"
+                  name="modelo"
+                  defaultValue={String(selectedProductVariation?.id)}
+                />
+              )}
 
               <div>
                 <SelectBox
                   label="Cantidad"
                   value={selectedQuantity}
                   onChange={setSelectedQuantity}
-                  optionsList={stockSelectboxOptionsList}
+                  optionsList={stockOptionsList}
                 />
                 <input
                   type="hidden"
@@ -302,9 +468,10 @@ export default function ProductPage() {
                 />
               </div>
               <button
+                onClick={validateForm}
                 name="action"
                 value="addToCart"
-                className="mt-5 flex w-full items-center justify-center rounded-md border border-transparent bg-indigo-600 px-8 py-3 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+                className="mt-5 flex w-full items-center justify-center rounded-md border border-transparent bg-primary-600 px-8 py-3 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-50"
               >
                 Agregar al carrito
               </button>
@@ -312,38 +479,48 @@ export default function ProductPage() {
                 <button
                   name="action"
                   value="addToCart"
-                  className="flex w-full items-center justify-center rounded-md border border-transparent bg-indigo-50 px-8 py-3 text-base font-medium text-indigo-700 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+                  className="flex w-full items-center justify-center rounded-md border border-transparent bg-primary-50 px-8 py-3 text-base font-medium text-primary-700 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-50"
                 >
                   Preview
                 </button> */}
             </addToCartForm.Form>
           </div>
 
-          <div className="mt-10 border-t border-gray-200 pt-10">
-            <h3 className="text-sm font-medium text-gray-900">Highlights</h3>
-            <div className="prose prose-sm mt-4 text-gray-500">
-              <ul role="list">
-                {productBase.highlights.map((highlight) => (
-                  <li key={highlight}>{highlight}</li>
-                ))}
-              </ul>
+          {/* TECHNICAL SPECS */}
+          {product.documentUrl != null && (
+            <div className="mt-10 border-t border-gray-200 pt-10">
+              <h3 className="text-sm font-medium text-gray-900">
+                Especificaciones
+              </h3>
+              <div className="prose prose-sm mt-4 text-gray-500">
+                <a
+                  target="_blank"
+                  href={product.documentUrl}
+                  className="mt-2 items-center justify-center rounded-md border border-gray-300 bg-white px-8 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 "
+                >
+                  Descargar especificaciones
+                </a>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="mt-10 border-t border-gray-200 pt-10">
-            <h3 className="text-sm font-medium text-gray-900">License</h3>
-            <p className="mt-4 text-sm text-gray-500">
-              {license.summary}{" "}
-              <a
-                href={license.href}
-                className="font-medium text-indigo-600 hover:text-indigo-500"
-              >
-                Read full license
-              </a>
-            </p>
-          </div>
+          {/* INSTRUCTIVE DOCUMENT */}
+          {product.instructive_documents_id != null && (
+            <div className="mt-10 border-t border-gray-200 pt-10">
+              <h3 className="text-sm font-medium text-gray-900">Instructivo</h3>
+              <div className="prose prose-sm mt-4 text-gray-500">
+                <a
+                  target="_blank"
+                  href={product.instructive_documents_id}
+                  className="mt-2 items-center justify-center rounded-md border border-gray-300 bg-white px-8 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 "
+                >
+                  Descargar instructivo
+                </a>
+              </div>
+            </div>
+          )}
 
-          <div className="mt-10 border-t border-gray-200 pt-10">
+          {/* <div className="mt-10 border-t border-gray-200 pt-10">
             <h3 className="text-sm font-medium text-gray-900">Share</h3>
             <ul role="list" className="mt-4 flex items-center space-x-6">
               <li>
@@ -403,7 +580,7 @@ export default function ProductPage() {
                 </a>
               </li>
             </ul>
-          </div>
+          </div> */}
         </div>
 
         <div className="mx-auto mt-16 w-full max-w-2xl lg:col-span-4 lg:mt-0 lg:max-w-none">
@@ -414,38 +591,39 @@ export default function ProductPage() {
                   className={({ selected }) =>
                     classNames(
                       selected
-                        ? "border-indigo-600 text-indigo-600"
+                        ? "border-secondary-600 text-secondary-600"
                         : "border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-800",
                       "whitespace-nowrap border-b-2 py-6 text-sm font-medium"
                     )
                   }
                 >
-                  Customer Reviews
+                  Descripción
                 </Tab>
-                <Tab
+
+                {/* <Tab
                   className={({ selected }) =>
                     classNames(
                       selected
-                        ? "border-indigo-600 text-indigo-600"
+                        ? "border-secondary-600 text-secondary-600"
                         : "border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-800",
                       "whitespace-nowrap border-b-2 py-6 text-sm font-medium"
                     )
                   }
                 >
-                  FAQ
-                </Tab>
-                <Tab
+                  Preguntas frecuentes
+                </Tab> */}
+                {/* <Tab
                   className={({ selected }) =>
                     classNames(
                       selected
-                        ? "border-indigo-600 text-indigo-600"
+                        ? "border-secondary-600 text-secondary-600"
                         : "border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-800",
                       "whitespace-nowrap border-b-2 py-6 text-sm font-medium"
                     )
                   }
                 >
-                  License
-                </Tab>
+                  Reseñas
+                </Tab> */}
               </Tab.List>
             </div>
             <Tab.Panels as={Fragment}>
@@ -458,7 +636,7 @@ export default function ProductPage() {
                 />
               </Tab.Panel>
 
-              <Tab.Panel className="-mb-10">
+              {/* <Tab.Panel className="-mb-10">
                 <h3 className="sr-only">Customer Reviews</h3>
 
                 {reviews.featured.map((review, reviewIdx) => (
@@ -509,9 +687,9 @@ export default function ProductPage() {
                     </div>
                   </div>
                 ))}
-              </Tab.Panel>
+              </Tab.Panel> */}
 
-              <Tab.Panel className="text-sm text-gray-500">
+              {/* <Tab.Panel className="text-sm text-gray-500">
                 <h3 className="sr-only">Frequently Asked Questions</h3>
 
                 <dl>
@@ -526,16 +704,16 @@ export default function ProductPage() {
                     </Fragment>
                   ))}
                 </dl>
-              </Tab.Panel>
+              </Tab.Panel> */}
 
-              <Tab.Panel className="pt-10">
+              {/* <Tab.Panel className="pt-10">
                 <h3 className="sr-only">License</h3>
 
                 <div
                   className="prose prose-sm max-w-none text-gray-500"
                   dangerouslySetInnerHTML={{ __html: license.content }}
                 />
-              </Tab.Panel>
+              </Tab.Panel> */}
             </Tab.Panels>
           </Tab.Group>
         </div>
@@ -545,48 +723,82 @@ export default function ProductPage() {
       <div className="mx-auto mt-24 max-w-2xl sm:mt-32 lg:max-w-none">
         <div className="flex items-center justify-between space-x-4">
           <h2 className="text-lg font-medium text-gray-900">
-            Customers also viewed
+            Productos relacionados
           </h2>
-          <a
+          {/* <a
             href="#"
-            className="whitespace-nowrap text-sm font-medium text-indigo-600 hover:text-indigo-500"
+            className="whitespace-nowrap text-sm font-medium text-primary-600 hover:text-primary-500"
           >
             View all
             <span aria-hidden="true"> &rarr;</span>
-          </a>
+          </a> */}
         </div>
-        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2 sm:gap-y-10 lg:grid-cols-4">
-          {relatedProducts.map((product:Product) => (
-            <div key={product.id} className="group relative">
-              <div className="aspect-h-3 aspect-w-4 overflow-hidden rounded-lg bg-gray-100">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="object-cover object-center"
-                />
-                <div
-                  className="flex items-end p-4 opacity-0 group-hover:opacity-100"
-                  aria-hidden="true"
-                >
-                  <div className="w-full rounded-md bg-white bg-opacity-75 px-4 py-2 text-center text-sm font-medium text-gray-900 backdrop-blur backdrop-filter">
-                    Ver Producto
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between space-x-8 text-base font-medium text-gray-900">
-                <h3>
-                  <Link to={`/product/${product.id}`}>
-                    <span aria-hidden="true" className="absolute inset-0" />
-                    {product.name}
-                  </Link>
-                </h3>
-                <p>{product.price}</p>
-              </div>
-              <p className="mt-1 text-sm text-gray-500">{product.user}</p>
-            </div>
+        <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
+          {relatedProducts.map((product: Product) => (
+            <ProductThumbnail key={product.id} product={product} />
+            // <div key={product.id} className="group relative">
+            //   <div className="aspect-h-3 aspect-w-4 overflow-hidden rounded-lg bg-gray-100">
+            //     <img
+            //       src={product.image}
+            //       alt={product.name}
+            //       className="object-cover object-center"
+            //     />
+            //     <div
+            //       className="flex items-end p-4 opacity-0 group-hover:opacity-100"
+            //       aria-hidden="true"
+            //     >
+            //       <div className="w-full rounded-md bg-white bg-opacity-75 px-4 py-2 text-center text-sm font-medium text-gray-900 backdrop-blur backdrop-filter">
+            //         Ver Producto
+            //       </div>
+            //     </div>
+            //   </div>
+            //   <div className="mt-4 flex items-center justify-between space-x-8 text-base font-medium text-gray-900">
+            //     <h3>
+            //       <Link to={`/product/${product.id}`}>
+            //         <span aria-hidden="true" className="absolute inset-0" />
+            //         {product.name}
+            //       </Link>
+            //     </h3>
+            //     <p>{product.price}</p>
+            //   </div>
+            //   <p className="mt-1 text-sm text-gray-500">{product.user}</p>
+            // </div>
           ))}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {modalDisplay && (
+        <DialogOverlay
+          onClose={() => setModalDisplay(false)}
+          message={"actionData.errors.payment_error.message"}
+          display={true}
+        >
+          <div>
+            <CheckCircleIcon className="h-20 w-20 text-green-500 mx-auto" />
+            <h3 className="text-lg text-center font-medium text-gray-900 mt-1">
+              Producto agregado al carrito
+            </h3>
+          </div>
+          <div className="flex justify-around align-middle mt-5">
+            <button
+              onClick={() => setModalDisplay(false)}
+              className="text-sm font-medium text-gray-600 hover:text-gray-500"
+              className="flex items-center justify-center rounded-md border bg-transparent px-8 py-3 text-base font-medium text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 focus:ring-offset-gray-50"
+            >
+              Continuar comprando
+            </button>
+
+            <Link
+              to="/cart"
+              className="flex items-center justify-center rounded-md border border-transparent bg-primary-600 px-8 py-3 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+            >
+              Ir al carrito
+            </Link>
+          </div>
+          
+        </DialogOverlay>
+      )}
     </div>
   );
 }

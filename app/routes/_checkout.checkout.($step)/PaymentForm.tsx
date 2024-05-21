@@ -1,21 +1,16 @@
-import React, {useState, useEffect} from 'react';
-import ReactDOM from 'react-dom';
-import {loadStripe} from '@stripe/stripe-js';
-import {
-  PaymentElement,
-  Elements,
-  useStripe,
-  useElements,
-} from '@stripe/react-stripe-js';
+import React, { useState, useEffect } from "react";
+import { PaymentElement, useStripe } from "@stripe/react-stripe-js";
 
-export default function CheckoutForm () {
+export default function CheckoutForm({
+  onFormCompleted = () => undefined,
+}: {
+  onFormCompleted: Function;
+}) {
+  const [formErrors, setFormErrors] = useState({});
+
+  // Stripe configuration
   const stripe = useStripe();
-  const elements = useElements();
-
-  const [message, setMessage] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
-
+  const [isPaymentFormComplete, setIsPaymentFormComplete] = useState(false);
   useEffect(() => {
     if (!stripe) {
       return;
@@ -47,18 +42,35 @@ export default function CheckoutForm () {
     });
   }, [stripe]);
 
+  // Handle stripe form changes
+  function stripeFormChangeHandler(event){
+    setIsPaymentFormComplete(event.complete);
+    setFormErrors((prev) => {
+      const { payment_errors: _, ...rest } = prev;
+      return rest;
+    })
+  }
+
+  //
+  const [message, setMessage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  // Check if the form is complete
+  useEffect(() => {
+    if (onFormCompleted) {
+      onFormCompleted(isPaymentFormComplete);
+    }
+  }, [isPaymentFormComplete]);
+
+  
+
   return (
     <>
-      <PaymentElement id="payment-element" />
-
-      {/* <button disabled={isLoading || !stripe || !elements} id="submit">
-        <span id="button-text">
-          {isLoading ? <div className="spinner" id="spinner"></div> : "Pay now"}
-        </span>
-      </button> */}
+      <PaymentElement onChange={stripeFormChangeHandler} id="payment-element" />
 
       {/* Show any error or success messages */}
       {message && <div id="payment-message">{message}</div>}
     </>
   );
-};
+}
