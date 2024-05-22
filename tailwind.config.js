@@ -15,6 +15,9 @@ module.exports = {
   theme: {
     extend: {
       colors,
+      backgroundImage: {
+        'generic-pattern': "url('/statics/pattern.png')",
+      }
     },
     // extend: {
     //   fontSize: {

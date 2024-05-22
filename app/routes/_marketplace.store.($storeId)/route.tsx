@@ -86,17 +86,20 @@ export default function StorePage() {
   const { storeDetails, storeCatalog } =
     useLoaderData<typeof loader>();
 
+    console.log(storeDetails, storeCatalog);
+
   // Return main component
   return (
     <>
       <div>
-        <img
+        <div className="bg-[length:740px_160px] bg-repeat bg-[url('https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/pattern.png')] h-20" />
+        {/* <img
           className="h-32 w-full object-cover lg:h-48"
           src={
             "https://images.unsplash.com/photo-1444628838545-ac4016a5418a?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80"
           }
           alt=""
-        />
+        /> */}
       </div>
 
       <div className="mx-auto px-4 pb-24 pt-14 sm:px-6 sm:pb-32 sm:pt-16 lg:max-w-7xl lg:px-8">
@@ -112,9 +115,9 @@ export default function StorePage() {
               >
                 {storeDetails.brand}
               </h2>
-              <p className="mt-2 text-sm text-gray-500">
+              {/* <p className="mt-2 text-sm text-gray-500">
                 {storeDetails.neighborhood}
-              </p>
+              </p> */}
               <p className="mt-4 text-gray-500">{storeDetails.comments}</p>
             </div>
 
@@ -160,9 +163,10 @@ export default function StorePage() {
                     <h2 id="product-heading" className="sr-only">
                       Products
                     </h2>
-                    <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 lg:gap-x-8 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-4 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-4 xl:grid-cols-5">
                       {storeCatalog.map((product: Product) => (
                         <ProductThumbnail
+                          containerClassName="border-0"
                           key={product.objectID}
                           {...{ product }}
                         />

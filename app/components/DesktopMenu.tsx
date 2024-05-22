@@ -86,7 +86,7 @@ export default function DesktopMenu({
 
   // Return component
   return (
-    <header className="relative z-10">
+    <header className="relative z-20">
       <nav aria-label="Top">
         {/* Top navigation */}
         <div className="bg-gray-900">

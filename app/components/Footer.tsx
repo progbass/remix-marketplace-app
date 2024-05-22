@@ -17,6 +17,7 @@ import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import { Autocomplete } from "./CustomISAutocomplete";
 import logoUrl from "~/statics/logo.svg";
 import { useMarketplaceCategories } from "~/providers/MarketplaceCategoriesContext";
+import patternBackground from "~/statics/pattern.png"
 
 
 const footerNavigation = {
@@ -76,7 +77,7 @@ export default function Footer({}: FooterProps) {
 
   // Return component
   return (
-    <footer aria-labelledby="footer-heading" className="bg-gray-900">
+    <footer aria-labelledby="footer-heading" className="bg-gray-900 mt-12">
       <h2 id="footer-heading" className="sr-only">
         Footer
       </h2>
@@ -190,6 +191,8 @@ export default function Footer({}: FooterProps) {
           </p>
         </div>
       </div>
+
+      <div className="bg-[length:600px_130px] bg-repeat bg-[url('https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/pattern.png')] h-6" />
     </footer>
   );
 }

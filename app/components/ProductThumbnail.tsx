@@ -10,11 +10,16 @@ import { formatPrice } from "~/utils/formatPrice";
 import classNames from "~/utils/classNames";
 import { TruckIcon } from "@heroicons/react/20/solid";
 
-
-export default function ProductThumbnail({ product }:{ product:Product }) {
+type ProductThumbnailProps = {
+  product: Product;
+  containerClassName?: string;
+};
+export default function ProductThumbnail({ 
+  product, 
+  containerClassName = "" 
+}:ProductThumbnailProps) {
   // Discount settings
   const hasDiscount = product?.discount || product?.discount > 0
-
 
   // Render component
   return (
@@ -22,18 +27,21 @@ export default function ProductThumbnail({ product }:{ product:Product }) {
           key={product.objectID}
           onClick={() => sendEvent("click", product, "Hit Clicked")}
           onAuxClick={() => sendEvent("click", product, "Hit Clicked")}
-          className="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
+          className={classNames(
+            "group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white",
+            containerClassName
+          )}
         >
           {/* DISCOUNT BADGE */}
           <div 
               className={classNames(
-                " right-0 top-0 text-xs font-medium bg-success-900 px-2 py-1 ",
+                "z-10 right-0 top-0 text-xs font-medium bg-success-900 px-2 py-1 ",
                 hasDiscount ? "absolute inline-block text-white" : "hidden text-gray-900"
               )}
             >{`-${product.discount} %`}</div>
 
           {/* IMAGE */}
-          <div className="aspect-h-3 aspect-w-3 bg-gray-200 sm:aspect-none group-hover:opacity-75 sm:h-64">
+          <div className="aspect-h-3 aspect-w-3 bg-gray-200 group-hover:opacity-75 ">
             <Link to={`/product/${product.id}`}>
               <img
                 src={product.image}
