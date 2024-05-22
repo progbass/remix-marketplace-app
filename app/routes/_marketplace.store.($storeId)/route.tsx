@@ -3,6 +3,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Fragment, useState, useEffect } from "react";
 import { Tab } from "@headlessui/react";
+import parse from 'html-react-parser';
 import { StarIcon } from "@heroicons/react/20/solid";
 
 import type { ProductVariation } from "~/types/ProductVariation";
@@ -118,7 +119,7 @@ export default function StorePage() {
               {/* <p className="mt-2 text-sm text-gray-500">
                 {storeDetails.neighborhood}
               </p> */}
-              <p className="mt-4 text-gray-500">{storeDetails.comments}</p>
+              <p className="mt-4 text-gray-500">{parse(storeDetails.comments)}</p>
             </div>
 
             <Tab.Group as="div" className="mt-4">
@@ -182,7 +183,7 @@ export default function StorePage() {
                         Acerca de nosotros
                       </h3>
                       <p className="mt-2 text-sm text-gray-500">
-                        {storeDetails.comments}
+                        {parse(storeDetails.comments)}
                       </p>
                     </div>
                     <div className="lg:col-span-5">
