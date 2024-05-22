@@ -10,7 +10,7 @@ import {
   Tab,
   Transition,
 } from "@headlessui/react";
-import parse from 'html-react-parser';
+// import parse from 'html-react-parser';
 
 import type { ProductVariation } from "~/types/ProductVariation";
 import type { Product } from "~/types/Product";
@@ -429,7 +429,7 @@ export default function ProductPage() {
             <div className="mt-10">
               <h2 className="text-sm font-medium text-gray-900">Descripción</h2>
               <p className="mt-2 text-gray-500">
-                {parse(selectedProductVariationDescription)}
+                {(selectedProductVariationDescription)}
               </p>
             </div>
           )}
@@ -633,7 +633,7 @@ export default function ProductPage() {
 
                 <div
                   className="prose prose-sm max-w-none text-gray-500"
-                >{parse(product.description)}</div>
+                >{(product.description)}</div>
               </Tab.Panel>
 
               {/* <Tab.Panel className="-mb-10">
