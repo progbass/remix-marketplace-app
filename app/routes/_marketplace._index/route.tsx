@@ -9,66 +9,68 @@ import { Product } from "~/types/Product";
 import classNames from "~/utils/classNames";
 
 import ProductListing from "~/components/ProductListing";
-import heroBannerImage from "~/statics/hero-banner1.png";
+import patternBackground from "~/statics/pattern.png";
+import { useInstantSearch } from "react-instantsearch";
 
 const collections = [
   {
-    name: "Desk and Office",
-    description: "Work from home accessories",
+    name: "Las ofertas más hot",
+    description: "Productos con descuentos increíbles",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-02-edition-01.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-hot-sale-2024.png",
     imageAlt:
-      "Desk with leather desk pad, walnut desk organizer, wireless keyboard and mouse, and porcelain mug.",
-    href: "#",
+      "Productos con descuentos increíbles",
+    href: "/collections/ofertas-hot-2024",
   },
   {
-    name: "Self-Improvement",
-    description: "Journals and note-taking",
+    name: "Día de las madres",
+    description: "Regálale algo que sí le guste",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-02-edition-02.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-dia-madres-2024.png",
     imageAlt:
-      "Wood table with porcelain mug, leather journal, brass pen, leather key ring, and a houseplant.",
-    href: "#",
+      "Regálale algo que sí le guste",
+    href: "/collections/dia-madres-2024",
   },
   {
-    name: "Travel",
-    description: "Daily commute essentials",
+    name: "Productos de primavera",
+    description: "Artículos para disfrutar la temporada",
     imageSrc:
-      "https://tailwindui.com/img/ecommerce-images/home-page-02-edition-03.jpg",
-    imageAlt: "Collection of four insulated travel bottles on wooden shelf.",
-    href: "#",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-spring-2025.png",
+    imageAlt: "Artículos para disfrutar la temporada",
+    href: "/collections/primavera-2024",
   },
 ];
 const categories = [
   {
-    name: "Moda",
-    href: "#",
+    name: "Hogar & Decoración",
+    href: "/search?categories%5B0%5D=Hogar%20%26%20Decoración",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/6570d3629ab6e.jpg",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-categories-hogar.png",
   },
   {
-    name: "Vinos",
-    href: "#",
+    name: "Ropa & Calzado",
+    href: "/search?categories%5B0%5D=Ropa%20%26%20Calzado",
+    imageSrc:
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-categories-ropa.png",
+  },
+  {
+    name: "Vinos & Licores",
+    slug: "vinos-licores",
+    href: "/search?categories%5B0%5D=Vinos%20%26%20Licores",
     imageSrc:
       "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/65bd256ea8128.jpg",
   },
   {
-    name: "Hogar",
-    href: "#",
-    imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/4ZcrIle6ph8aUozVDjYcxcU7BetDsC0Aq4BAgyVS.jpg",
-  },
-  {
-    name: "Alimentos y Bebidas",
-    href: "#",
+    name: "Alimentos & Bebidas",
+    href: "/search?categories%5B0%5D=Alimentos%20%26%20Bebidas",
     imageSrc:
       "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/q9g9H1c86xQ8EtgZXwGgcGZ5ZddbbAqLLuJbESaG.jpg",
   },
   {
-    name: "Artesanías",
-    href: "#",
+    name: "Salud & Belleza",
+    href: "/search?categories%5B0%5D=Vinos%20&%20Licores",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/CXu36SwSMQleNu98PxuxYYqqYQDEgdYtoKELUIdQ.png",
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-categories-salud.png",
   },
 ];
 
@@ -91,7 +93,18 @@ export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => 
 
 export default function HomePage() {
   const { featuredProducts, trendyProducts, discounts } = useLoaderData<typeof loader>();
-  console.log("featuredProducts", featuredProducts);
+  const { indexUiState, setIndexUiState } = useInstantSearch();
+
+  function setSearchCategory(categoryName:string) {
+    // Update Algolia index state
+    setIndexUiState((prevIndexUiState) => ({
+      ...prevIndexUiState,
+      hierarchicalMenu: {
+        ...prevIndexUiState.hierarchicalMenu,
+        ["categories.lvl0"]: [categoryName],
+      },
+    }));
+  }
   // Return component
   return (
     <>
@@ -168,7 +181,7 @@ export default function HomePage() {
           <div className="relative overflow-hidden rounded-md md:h-40 py-16 md:py-52">
             <div className="absolute inset-0">
               <img
-                src={heroBannerImage}
+                src={"https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-herobanner-hot-sale-2024.png"}
                 // src="https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/65b2c89d0eb5d.jpg"
                 alt=""
                 className="h-full w-full object-cover object-center"
@@ -176,7 +189,7 @@ export default function HomePage() {
             </div>
             <div aria-hidden="true" className="relative h-40 w-full md:hidden" />
             <div aria-hidden="true" className="relative h-52 w-full md:hidden" />
-            <div className="absolute inset-x-0 bottom-0 rounded-bl-lg rounded-br-lg bg-black bg-opacity-75 p-6 backdrop-blur backdrop-filter sm:flex sm:items-center sm:justify-between md:inset-x-auto md:inset-y-0 md:w-72 md:flex-col md:items-start md:rounded-bl-none md:rounded-tr-lg md:right-0">
+            {/* <div className="absolute inset-x-0 bottom-0 rounded-bl-lg rounded-br-lg bg-black bg-opacity-75 p-6 backdrop-blur backdrop-filter sm:flex sm:items-center sm:justify-between md:inset-x-auto md:inset-y-0 md:w-72 md:flex-col md:items-start md:rounded-bl-none md:rounded-tr-lg md:right-0">
               <div>
                 <h2 id="featured-heading" className="text-xl font-bold text-white">
                   Diseño en moda mexicanos
@@ -192,7 +205,7 @@ export default function HomePage() {
               >
                 Descúbrelo aquí
               </a>
-            </div>
+            </div> */}
           </div>
         </div>
       </section>
@@ -254,13 +267,13 @@ export default function HomePage() {
           >
             Explora por categoría
           </h2>
-          <a
-            href="#"
+          <Link
+            to="/search"
             className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-500 sm:block"
           >
             Todas las categorías
             <span aria-hidden="true"> &rarr;</span>
-          </a>
+          </Link>
         </div>
 
         <div className="mt-4 flow-root">
@@ -271,6 +284,7 @@ export default function HomePage() {
                   <Link
                     key={category.name}
                     to={category.href}
+                    onClick={() => setSearchCategory(category.name)}
                     className="relative flex h-80 w-56 flex-col overflow-hidden rounded-lg p-6 hover:opacity-75 xl:w-auto"
                   >
                     <span aria-hidden="true" className="absolute inset-0">
@@ -348,11 +362,11 @@ export default function HomePage() {
             <div className="relative flex items-center px-6 py-12 sm:px-10 sm:py-16 sm:mt-0">
               <div className="absolute inset-0 overflow-hidden rounded-lg">
                 <img
-                  src="https://tailwindui.com/img/ecommerce-images/footer-02-exclusive-sale.jpg"
+                  src={patternBackground}
                   alt=""
                   className="h-full w-full object-cover object-center saturate-0 filter"
                 />
-                <div className="absolute inset-0 bg-indigo-600 bg-opacity-90" />
+                <div className="absolute inset-0 bg-secondary-600 bg-opacity-90" />
               </div>
               <div className="relative mx-auto max-w-2xl text-center">
                 <h3 className="text-2xl font-bold tracking-tight text-white">
