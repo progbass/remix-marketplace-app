@@ -1,5 +1,5 @@
 Arguments: 
-  /Users/israel/.nvm/versions/node/v18.17.1/bin/node /usr/local/bin/yarn add html-react-parser
+  /Users/israel/.nvm/versions/node/v18.17.1/bin/node /usr/local/bin/yarn install
 
 PATH: 
   /Users/israel/bin:/usr/local/opt/gradle@7/bin:/Users/israel/.nvm/versions/node/v18.17.1/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/usr/local/MacGPG2/bin:/Users/israel/Library/Android/sdk/platform-tools:/Users/israel/Library/Android/sdk/cmdline-tools/latest/bin:/Users/israel/Library/Android/sdk/build-tools:/Users/israel/Library/Android/sdk/emulator
