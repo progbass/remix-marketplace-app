@@ -17,7 +17,6 @@ import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import { Autocomplete } from "./CustomISAutocomplete";
 import logoUrl from "~/statics/logo.svg";
 import { useMarketplaceCategories } from "~/providers/MarketplaceCategoriesContext";
-import patternBackground from "~/statics/pattern.png"
 
 
 const footerNavigation = {
