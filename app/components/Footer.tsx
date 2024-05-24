@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect } from "react";
-import { Link } from "@remix-run/react";
+import { Link, NavLink } from "@remix-run/react";
 import { useNavigate } from "@remix-run/react";
 import { Dialog, Tab, Transition, Menu } from "@headlessui/react";
 
@@ -76,7 +76,7 @@ export default function Footer({}: FooterProps) {
 
   // Return component
   return (
-    <footer aria-labelledby="footer-heading" className="bg-gray-900 mt-12">
+    <footer aria-labelledby="footer-heading" className="bg-accent-900 mt-12">
       <h2 id="footer-heading" className="sr-only">
         Footer
       </h2>
@@ -93,7 +93,7 @@ export default function Footer({}: FooterProps) {
                     <li key={item.name} className="text-sm">
                       <Link
                         to={item.href}
-                        className="text-gray-300 hover:text-white"
+                        className="text-gray-300 hover:text-primary-600"
                       >
                         {item.name}
                       </Link>
@@ -109,7 +109,7 @@ export default function Footer({}: FooterProps) {
                     <li key={item.name} className="text-sm">
                       <Link
                         to={item.href}
-                        className="text-gray-300 hover:text-white"
+                        className="text-gray-300 hover:text-primary-600"
                       >
                         {item.name}
                       </Link>
@@ -127,7 +127,7 @@ export default function Footer({}: FooterProps) {
                     <li key={item.name} className="text-sm">
                       <Link
                         to={item.href}
-                        className="text-gray-300 hover:text-white"
+                        className="text-gray-300 hover:text-primary-600"
                       >
                         {item.name}
                       </Link>
@@ -142,7 +142,7 @@ export default function Footer({}: FooterProps) {
                     <li key={item.name} className="text-sm">
                       <Link
                         to={item.href}
-                        className="text-gray-300 hover:text-white"
+                        className="text-gray-300 hover:text-primary-600"
                       >
                         {item.name}
                       </Link>
@@ -183,7 +183,7 @@ export default function Footer({}: FooterProps) {
             </div> */}
         </div>
 
-        <div className="border-t border-gray-800 py-10">
+        <div className="border-t border-accent-800 py-6">
           <p className="text-sm text-gray-400">
             Derechos reservados &copy; 2024 México Limited | Hecho en México con
             amor

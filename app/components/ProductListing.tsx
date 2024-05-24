@@ -1,24 +1,4 @@
-import { Fragment, useState, useEffect } from "react";
-import { Link } from "@remix-run/react";
-import { useNavigate } from "@remix-run/react";
-import { Dialog, Tab, Transition, Menu } from "@headlessui/react";
-import { StarIcon } from '@heroicons/react/20/solid'
-
-import {
-  Bars3Icon,
-  MagnifyingGlassIcon,
-  ShoppingCartIcon,
-  UserIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
-import { MapPinIcon } from "@heroicons/react/20/solid";
-
-import classNames from "~/utils/classNames";
 import { Product } from "~/types/Product";
-import { useShoppingCart } from "~/providers/ShoppingCartContext";
-import { Autocomplete } from "./CustomISAutocomplete";
-import logoUrl from "~/statics/logo.svg";
-import { useMarketplaceCategories } from "~/providers/MarketplaceCategoriesContext";
 import ProductThumbnail from "./ProductThumbnail";
 
 //
@@ -27,8 +7,6 @@ type ProductListingProps = {
     title: string;
 };
 export default function ProductListing({ items = [], title }: ProductListingProps) {
-  //
-  const navigate = useNavigate();
 
   // Return component
   return (

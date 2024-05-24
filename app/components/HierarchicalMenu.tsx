@@ -6,7 +6,12 @@ import {
 } from "react-instantsearch";
 import classNames from "~/utils/classNames";
 
-export default function (props: UseHierarchicalMenuProps) {
+export default function ({
+  onClick:onClickHandler = () => {},
+  ...props
+}: {
+  onClick: () => void
+} & UseHierarchicalMenuProps) {
   const {
     items,
     refine,
@@ -22,11 +27,15 @@ export default function (props: UseHierarchicalMenuProps) {
         items={items}
         onNavigate={refine}
         createURL={createURL}
+        onClick={onClickHandler}
       />
       {props.showMore && (
         <button
           disabled={!canToggleShowMore}
-          onClick={e => { e.preventDefault(); toggleShowMore(); }}
+          onClick={(e) => {
+            e.preventDefault();
+            toggleShowMore();
+          }}
           className="text-secondary-600 hover:text-secondary-500 mt-4"
         >
           {isShowingMore ? "Ver menos" : "Ver más"}
@@ -42,6 +51,7 @@ type HierarchicalListProps = Pick<
   "items" | "createURL"
 > & {
   onNavigate(value: string): void;
+  onClick: () => void;
 };
 
 //
@@ -49,6 +59,7 @@ function HierarchicalList({
   items,
   createURL,
   onNavigate,
+  onClick:onClickHandler = () => {},
 }: HierarchicalListProps) {
   if (items.length === 0) {
     return null;
@@ -56,7 +67,6 @@ function HierarchicalList({
 
   return (
     <ul className="list-none space-y-3 pt-4">
-
       {items.map((item) => (
         <li key={item.value} className="items-center">
           <a
@@ -66,8 +76,8 @@ function HierarchicalList({
                 return;
               }
               event.preventDefault();
-
               onNavigate(item.value);
+              onClickHandler()
             }}
             // style={{ fontWeight: item.isRefined ? "bold" : "normal" }}
             className={classNames(
@@ -80,13 +90,14 @@ function HierarchicalList({
               {item.count}
             </span>
           </a>
-          
+
           {item.data && (
             <div className={`pl-8 pb-3`}>
               <HierarchicalList
                 items={item.data}
                 onNavigate={onNavigate}
                 createURL={createURL}
+                onClick={onClickHandler}
               />
             </div>
           )}

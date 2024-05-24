@@ -1,53 +1,100 @@
-import { Fragment, useState, useEffect } from "react";
-import { Link } from "@remix-run/react";
-import { useNavigate } from "@remix-run/react";
-import { Dialog, Tab, Transition, Menu } from "@headlessui/react";
+import { Fragment, useEffect, useRef } from "react";
+import { Link, Form } from "@remix-run/react";
+import { Dialog, Tab, Transition } from "@headlessui/react";
 
-import {
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import { MapPinIcon } from "@heroicons/react/20/solid";
 
 import classNames from "~/utils/classNames";
 import { useMarketplaceCategories } from "~/providers/MarketplaceCategoriesContext";
-import { useInstantSearch } from "react-instantsearch";
+import { useInstantSearch, useHierarchicalMenu } from "react-instantsearch";
 
 const navigation = {
   pages: [
-    // { name: "Lo mejor del tanque", href: "#" },
+    { name: "Lo mejor del tanque", href: "#" },
     { name: "Tiendas", href: "#" },
   ],
 };
+const collections = [
+  {
+    name: "Las ofertas más hot",
+    description: "Productos con descuentos increíbles",
+    imageSrc:
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-hot-sale-2024.png",
+    imageAlt: "Descubre descuentos increíbles",
+    href: "/collections/ofertas-hot-2024",
+  },
+  {
+    name: "Día de las madres",
+    description: "Regálale algo extraordinario",
+    imageSrc:
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-dia-madres-2024.png",
+    imageAlt: "Regálale algo extraordinario",
+    href: "/collections/dia-madres-2024",
+  },
+  {
+    name: "Productos de primavera",
+    description: "Artículos para disfrutar la temporada",
+    imageSrc:
+      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-spring-2025.png",
+    imageAlt: "Artículos para disfrutar la temporada",
+    href: "/collections/primavera-2024",
+  },
+];
 
 //
 type MobileMenuProps = {
   isOpen: boolean;
   onClose: (isOpen: boolean) => void;
-//   currentUser: any;
+  currentUser: null | object;
 };
 export default function MobileMenu({
   isOpen,
   onClose,
-//   currentUser,
+  currentUser = null,
 }: MobileMenuProps) {
   //
-  const navigate = useNavigate();
   const marketplaceCategories: Array<any> = useMarketplaceCategories() || [];
 
   // Navigate to category
-  const { indexUiState, setIndexUiState } = useInstantSearch();
-  const navigateToCategory = (categoryName: string, close: Function) => {
-    // Update Algolia index state
-    setIndexUiState((prevIndexUiState) => ({
-      ...prevIndexUiState,
-      hierarchicalMenu: {
-        ...prevIndexUiState.hierarchicalMenu,
-        ["categories.lvl0"]: [categoryName],
-      },
-    }));
+  const { refine, createURL } = useHierarchicalMenu({
+    attributes: ["categories.lvl0"],
+    limit: 30,
+    sortBy: ["name:asc"],
+  });
+  const { uiState, setUiState, setIndexUiState } = useInstantSearch();
+  const uiStateRef = useRef(uiState);
+
+  useEffect(() => {
+    uiStateRef.current = uiState;
+  }, [uiState]);
+
+  useEffect(() => {
+    return () => {
+      setTimeout(() => {
+        setUiState(uiStateRef.current);
+      }, 5);
+    };
+  }, [setIndexUiState]);
+
+  const navigateToCategory = (categoryName: string) => {
+    refine(categoryName);
+  //   // Update Algolia index state
+  //   setIndexUiState((prevIndexUiState) => ({
+  //     ...prevIndexUiState,
+  //     hierarchicalMenu: {
+  //       ...prevIndexUiState.hierarchicalMenu,
+  //       ["categories.lvl0"]: [categoryName],
+  //     },
+  //   }));
 
     // Close the menu panel
-    close();
+    closeMenu();
+  };
+
+  // Close menu
+  function closeMenu() {
+    onClose();
   }
 
   // Return component
@@ -139,9 +186,11 @@ export default function MobileMenu({
                           >
                             {marketplaceCategories.map((category) => (
                               <li key={category.name} className="flex">
-                                <Link 
-                                  to={`/search?categories%5B0%5D=${category.name}&pageMode=category`}
-                                  onClick={(event) => {navigateToCategory(category.name, onClose)}}
+                                <Link
+                                  to={createURL(category.name)}
+                                  onClick={(event) => {
+                                    navigateToCategory(category.name);
+                                  }}
                                   className="text-gray-500"
                                 >
                                   {category.name}
@@ -169,9 +218,13 @@ export default function MobileMenu({
                             aria-labelledby={`mobile-featured-heading-${0}`}
                             className="mt-6 space-y-6"
                           >
-                            {[].map((item) => (
+                            {collections.map((item) => (
                               <li key={item.name} className="flex">
-                                <Link to={item.href} className="text-gray-500">
+                                <Link
+                                  to={item.href}
+                                  onClick={closeMenu}
+                                  className="text-gray-500"
+                                >
                                   {item.name}
                                 </Link>
                               </li>
@@ -184,7 +237,7 @@ export default function MobileMenu({
                 </Tab.Panels>
               </Tab.Group>
 
-              {/* PAGES NAVIGATION */}
+              {/* PAGES NAVIGATION 
               <div className="space-y-6 border-t border-gray-200 px-4 py-6">
                 {navigation.pages.map((page) => (
                   <div key={page.name} className="flow-root">
@@ -196,29 +249,69 @@ export default function MobileMenu({
                     </Link>
                   </div>
                 ))}
-              </div>
+              </div> */}
 
               {/* ACCOUNT NAVIGATION */}
               <div className="space-y-6 border-t border-gray-200 px-4 py-6">
+                {/* ACCOUNT ACCESS */}
                 <div className="flow-root">
-                  <a
-                    href="#"
-                    className="-m-2 block p-2 font-medium text-gray-900"
-                  >
-                    Ingresa a tu cuenta
-                  </a>
+                  {!currentUser ? (
+                    <Link
+                      to="/login"
+                      onClick={closeMenu}
+                      className="-m-2 block p-2 font-medium text-gray-900"
+                    >
+                      Ingresa a tu cuenta
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/account"
+                      onClick={closeMenu}
+                      className="-m-2 block p-2 font-medium text-gray-900"
+                    >
+                      Mi cuenta
+                    </Link>
+                  )}
                 </div>
+
+                {/* SELLERS ACCESS */}
                 <div className="flow-root">
-                  <Link
-                    to="/vende-en-mexico-limited"
-                    className="-m-2 block p-2 font-medium text-gray-900"
-                  >
-                    Vende con nosotros
-                  </Link>
+                  {currentUser && currentUser?.brand ? (
+                    <Link
+                      to="/admin"
+                      onClick={closeMenu}
+                      className="-m-2 block p-2 font-medium text-gray-900"
+                    >
+                      Ir a mi tienda
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/vende-en-mexico-limited"
+                      onClick={closeMenu}
+                      className="-m-2 block p-2 font-medium text-gray-900"
+                    >
+                      Vende con nosotros
+                    </Link>
+                  )}
                 </div>
+
+                {/* LOGOUT BUTTON */}
+                {currentUser ? (
+                  <div className="flow-root">
+                    <Form method="post" action="/logout">
+                      <button
+                        type="submit"
+                        onClick={closeMenu}
+                        className="-m-2 block p-2 font-medium text-error-600"
+                      >
+                        Cerrar sesión
+                      </button>
+                    </Form>
+                  </div>
+                ) : null}
               </div>
 
-              {/* USER ZIP LOCATION */}
+              {/* USER ZIP LOCATION
               <div className="space-y-6 border-t border-gray-200 px-4 py-6">
                 <form>
                   <div className="inline-block">
@@ -243,6 +336,7 @@ export default function MobileMenu({
                   </div>
                 </form>
               </div>
+              */}
             </Dialog.Panel>
           </Transition.Child>
         </div>

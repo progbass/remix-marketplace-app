@@ -165,3 +165,50 @@ export function validateUserRegistrationForm(formValues: any) {
 
   return errors;
 }
+
+
+// USER PROFILE UPDATE VALIDATOR
+export function validateUserProfileForm(formValues: any) {
+  const errors: any = {};
+
+  // Validate name
+  const [isNameValid, nameErrors] = validateName(formValues["name"]);
+  if (!isNameValid) {
+    errors["name"] = nameErrors;
+  }
+
+  // Validate lastname
+  if(formValues["lastname"]){
+    const [isLastNameValid, lastNameErrors] = validateLastName(formValues["lastname"]);
+    if (!isLastNameValid) {
+      errors["lastname"] = lastNameErrors;
+    }
+  }
+
+  // Validate email
+  const [isEmailValid, emailErrors] = validateEmail(formValues["email"]);
+  if (!isEmailValid) {
+    errors["email"] = emailErrors;
+  }
+
+  // Password validation
+  if(formValues["password"]){
+    const [isPasswordValid, passwordErrors] = validatePassword(
+      formValues["password"]
+    );
+    if (!isPasswordValid) {
+      errors["password"] = passwordErrors;
+    }
+
+    const [isPasswordConfirmValid, passwordConfirmErrors] = comparePasswords(
+      formValues["password"],
+      formValues["password-confirm"]
+    );
+    if (!isPasswordConfirmValid) {
+      errors["password-confirm"] = passwordConfirmErrors;
+    }
+  }
+  
+  // Return errors
+  return errors;
+}

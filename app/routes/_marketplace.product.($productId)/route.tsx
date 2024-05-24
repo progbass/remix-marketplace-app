@@ -10,7 +10,7 @@ import {
   Tab,
   Transition,
 } from "@headlessui/react";
-import parse from 'html-react-parser';
+import parse from "html-react-parser";
 
 import type { ProductVariation } from "~/types/ProductVariation";
 import type { Product } from "~/types/Product";
@@ -24,6 +24,19 @@ import SelectBox from "~/components/SelectBox";
 import DialogOverlay from "~/components/DialogOverlay";
 import ProductThumbnail from "~/components/ProductThumbnail";
 import { formatPrice } from "~/utils/formatPrice";
+import {
+  Configure,
+  Hits,
+  InstantSearch,
+  Pagination,
+  SearchBox,
+  useConfigure,
+  useHits,
+} from "react-instantsearch";
+import {
+  algoliaProductsIndex,
+  algoliaSearchClient,
+} from "~/utils/algoliaClients";
 
 const reviews = {
   average: 4,
@@ -109,6 +122,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       // throw new Error("Error fetching product data");
       error = err;
     });
+
+  //
+  // const { hit } = useConfigure({
+  //   hitsPerPage: 15,
+
+  // });
 
   // Return loader data
   return {
@@ -631,9 +650,9 @@ export default function ProductPage() {
               <Tab.Panel className="pt-10">
                 <h3 className="sr-only">Descripción</h3>
 
-                <div
-                  className="prose prose-sm max-w-none text-gray-500"
-                >{parse(product.description)}</div>
+                <div className="prose prose-sm max-w-none text-gray-500">
+                  {parse(product.description)}
+                </div>
               </Tab.Panel>
 
               {/* <Tab.Panel className="-mb-10">
@@ -719,6 +738,9 @@ export default function ProductPage() {
         </div>
       </div>
 
+      
+
+
       {/* Related products */}
       <div className="mx-auto mt-24 max-w-2xl sm:mt-32 lg:max-w-none">
         <div className="flex items-center justify-between space-x-4">
@@ -735,34 +757,11 @@ export default function ProductPage() {
         </div>
         <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
           {relatedProducts.map((product: Product) => (
-            <ProductThumbnail containerClassName="border-0" key={product.id} product={product} />
-            // <div key={product.id} className="group relative">
-            //   <div className="aspect-h-3 aspect-w-4 overflow-hidden rounded-lg bg-gray-100">
-            //     <img
-            //       src={product.image}
-            //       alt={product.name}
-            //       className="object-cover object-center"
-            //     />
-            //     <div
-            //       className="flex items-end p-4 opacity-0 group-hover:opacity-100"
-            //       aria-hidden="true"
-            //     >
-            //       <div className="w-full rounded-md bg-white bg-opacity-75 px-4 py-2 text-center text-sm font-medium text-gray-900 backdrop-blur backdrop-filter">
-            //         Ver Producto
-            //       </div>
-            //     </div>
-            //   </div>
-            //   <div className="mt-4 flex items-center justify-between space-x-8 text-base font-medium text-gray-900">
-            //     <h3>
-            //       <Link to={`/product/${product.id}`}>
-            //         <span aria-hidden="true" className="absolute inset-0" />
-            //         {product.name}
-            //       </Link>
-            //     </h3>
-            //     <p>{product.price}</p>
-            //   </div>
-            //   <p className="mt-1 text-sm text-gray-500">{product.user}</p>
-            // </div>
+            <ProductThumbnail
+              containerClassName="border-0"
+              key={product.id}
+              product={product}
+            />
           ))}
         </div>
       </div>
@@ -796,9 +795,41 @@ export default function ProductPage() {
               Ir al carrito
             </Link>
           </div>
-          
         </DialogOverlay>
       )}
     </div>
   );
 }
+
+const ProductListing = ({
+  title = null,
+  ...props
+}) => {
+
+  const DEFAULT_MAX_RESULTS = 4;
+
+  // Configure the search
+  useConfigure({
+    hitsPerPage: DEFAULT_MAX_RESULTS,
+    length: DEFAULT_MAX_RESULTS,
+    facetFilters: props.facetFilters,
+  });
+  const { hits } = useHits({
+    escapeHTML: false,
+  });
+
+  
+
+  // Render the component
+  return (
+    <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
+      {hits.map(product => (
+        <ProductThumbnail
+          containerClassName="border-0"
+          key={product.id}
+          product={product}
+        />
+      ))}
+    </div>
+  );
+};

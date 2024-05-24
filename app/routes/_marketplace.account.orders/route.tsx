@@ -8,10 +8,18 @@ import {
   useLoaderData,
 } from "@remix-run/react";
 import { ActionFunctionArgs, json } from "@remix-run/node";
-import { ExclamationCircleIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
+import {
+  ExclamationCircleIcon,
+  CheckCircleIcon,
+} from "@heroicons/react/20/solid";
 import { PhotoIcon, UserCircleIcon } from "@heroicons/react/24/solid";
-import { EllipsisVerticalIcon, MagnifyingGlassIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
+import {
+  EllipsisVerticalIcon,
+  MagnifyingGlassIcon,
+  ShoppingBagIcon,
+} from "@heroicons/react/24/outline";
 import { Switch, Menu, Transition } from "@headlessui/react";
+import add from "date-fns/add"
 
 import AuthService from "~/services/Auth.service";
 import getEnv from "get-env";
@@ -19,6 +27,13 @@ import classNames from "~/utils/classNames";
 import Fetcher from "~/utils/fetcher";
 import { redirect } from "react-router-dom";
 import { Product } from "~/types/Product";
+import { formatPrice } from "~/utils/formatPrice";
+import { formatDate } from "~/utils/dateUtils";
+import { ORDER_STATUS, statusColorPalette, renderOrderStatus } from "~/utils/orderStatusUtils";
+
+
+//
+const addToDate = add;
 
 // Loader function
 export async function loader({ request }: ActionFunctionArgs) {
@@ -34,12 +49,9 @@ export async function loader({ request }: ActionFunctionArgs) {
   const fetcher = new Fetcher(userDetails?.token, request);
 
   // Get user orders
-  const userOrders = await fetcher.fetch(
-    `${getEnv().API_URL}/user/orders`,
-    {
-      method: "GET",
-    }
-  );
+  const userOrders = await fetcher.fetch(`${getEnv().API_URL}/user/orders`, {
+    method: "GET",
+  });
 
   // Return data
   return { userDetails, orders: userOrders || [] };
@@ -48,7 +60,7 @@ export async function loader({ request }: ActionFunctionArgs) {
 //
 export default function UserSignupPage() {
   const { userDetails, orders } = useLoaderData<typeof loader>();
-  console.log(userDetails, orders )
+  console.log(userDetails, orders);
   // const orders = [
   //   {
   //     number: "WU88191111",
@@ -95,20 +107,20 @@ export default function UserSignupPage() {
             <dl className="grid flex-1 grid-cols-2 gap-x-6 text-sm sm:col-span-3 sm:grid-cols-3 lg:col-span-2">
               <div>
                 <dt className="font-medium text-gray-900">Número de orden</dt>
-                <dd className="mt-1 text-gray-500">ML-{order.id}</dd>
+                <dd className="mt-1 text-gray-500">{order.order_number}</dd>
               </div>
               <div className="hidden sm:block">
                 <dt className="font-medium text-gray-900">Fecha de compra</dt>
                 <dd className="mt-1 text-gray-500">
                   <time dateTime={order.created_at}>
-                    {order.created_at}
+                    {formatDate(order.created_at)}
                   </time>
                 </dd>
               </div>
               <div>
                 <dt className="font-medium text-gray-900">Total</dt>
-                <dd className="mt-1 font-medium text-gray-900">
-                  {order.total}
+                <dd className="mt-1 font-medium text-gray-500">
+                  {formatPrice(order.total_amount)}
                 </dd>
               </div>
             </dl>
@@ -117,7 +129,7 @@ export default function UserSignupPage() {
               <div className="flex items-center">
                 <Menu.Button className="-m-2 flex items-center p-2 text-gray-400 hover:text-gray-500">
                   <span className="sr-only">
-                    Opciones para la orden ML-{order.id}
+                    Opciones para la orden ML-{order.order_number}
                   </span>
                   <EllipsisVerticalIcon
                     className="h-6 w-6"
@@ -193,65 +205,105 @@ export default function UserSignupPage() {
           </div>
 
           {/* Products */}
-          <h4 className="sr-only">Productos</h4>
+          <div className="mt-2 px-4">
+            <h4 className=" text-sm font-semibold">
+              {order.static_store?.brand}
+            </h4>
+          </div>
           <ul role="list" className="divide-y divide-gray-200">
-            {order.products.map((product:Product) => (
+            {order.static_products.map((product: Product) => (
               <li key={product.id} className="p-4 sm:p-6">
-                <div className="flex items-center sm:items-start">
+                <div className="flex items-start">
                   <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200 sm:h-40 sm:w-40">
                     <img
-                      src={'https://tailwindui.com/img/ecommerce-images/order-history-page-03-product-01.jpg'}
-                      alt={'product.imageAlt'}
+                      src={product?.image}
+                      alt={product?.name}
                       className="h-full w-full object-cover object-center"
                     />
                   </div>
                   <div className="ml-6 flex-1 text-sm">
                     <div className="font-medium text-gray-900 sm:flex sm:justify-between">
+                      {/* Product name */}
                       <h5>{product.name}</h5>
-                      <p className="mt-2 sm:mt-0">{'product.price'}</p>
-                    </div>
-                    <p className="hidden text-gray-500 sm:mt-2 sm:block">
-                      {'product.description'}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="mt-6 sm:flex sm:justify-between">
-                  <div className="flex items-center">
-                    <CheckCircleIcon
-                      className="h-5 w-5 text-green-500"
-                      aria-hidden="true"
-                    />
-                    <p className="ml-2 text-sm font-medium text-gray-500">
-                      Entregado el día{" "}
-                      <time dateTime={'order.deliveredDatetime'}>
-                        {'order.deliveredDate'}
-                      </time>
-                    </p>
-                  </div>
+                      {/* Model Details */}
+                      {product.modelo !== null && (
+                        <div style={{ flexDirection: "row" }}>
+                          <p className="mt-2 sm:mt-0 text-gray-500">
+                            Talla/modelo:{" "}
+                            <span>
+                              {product.namemodel_size || ""}
+                              {product.namemodel_size && product.namemodel_model
+                                ? `${product.namemodel_size} / ${product.namemodel_model}`
+                                : ""}
+                              {product.namemodel || ""}
+                            </span>
+                          </p>
+                        </div>
+                      )}
 
-                  <div className="mt-6 flex items-center space-x-4 divide-x divide-gray-200 border-t border-gray-200 pt-4 text-sm font-medium sm:ml-4 sm:mt-0 sm:border-none sm:pt-0">
-                    <div className="flex flex-1 justify-center">
-                      <a
-                        href={'product.href'}
-                        className="whitespace-nowrap text-indigo-600 hover:text-indigo-500"
-                      >
-                        Ver producto
-                      </a>
-                    </div>
-                    <div className="flex flex-1 justify-center pl-4">
-                      <a
-                        href="#"
-                        className="whitespace-nowrap text-indigo-600 hover:text-indigo-500"
-                      >
-                        Comprar de nuevo
-                      </a>
+                      {/* Price and quantity */}
+                      <div>
+                        <p className="mt-2 sm:mt-0">
+                          {formatPrice(product.price)}{" "}
+                          {product?.quantity > 1 && (
+                            <span>x {product?.quantity}</span>
+                          )}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </li>
             ))}
           </ul>
+
+          <div className="px-4 pb-4 mt-2 sm:flex sm:justify-between">
+            <div className="flex items-center">
+              {/* <CheckCircleIcon
+                className="h-5 w-5 text-green-500"
+                aria-hidden="true"
+              /> */}
+              {order?.status ? (
+                    <p className={`text-sm font-medium ${statusColorPalette[order?.status]} `}>
+                      {order?.status 
+                        ? order?.status === ORDER_STATUS.PENDING && !order?.paid ? "Procesando pago" : renderOrderStatus(order?.status)
+                        : renderOrderStatus(order?.status)
+                      }
+                    </p>
+                  ) : null }
+            </div>
+
+            {order?.expected_shipping_date ? (
+              <p className="text-sm text-gray-500">
+                Entrega aprox.{" "}
+                <span>
+                  {order?.expected_shipping_date
+                    ? `${formatDate(order?.expected_shipping_date, "MMM dd")} - ${formatDate(addToDate(new Date(order?.expected_shipping_date), { days: 2 }).toISOString())}`
+                    : "No disponible"}
+                </span>
+              </p>
+            ) : null}
+
+            {/* <div className="mt-6 flex items-center space-x-4 divide-x divide-gray-200 border-t border-gray-200 pt-4 text-sm font-medium sm:ml-4 sm:mt-0 sm:border-none sm:pt-0">
+              <div className="flex flex-1 justify-center">
+                <a
+                  href={'product.href'}
+                  className="whitespace-nowrap text-indigo-600 hover:text-indigo-500"
+                >
+                  Ver producto
+                </a>
+              </div>
+              <div className="flex flex-1 justify-center pl-4">
+                <a
+                  href="#"
+                  className="whitespace-nowrap text-indigo-600 hover:text-indigo-500"
+                >
+                  Comprar de nuevo
+                </a>
+              </div>
+            </div> */}
+          </div>
         </div>
       ))}
     </div>

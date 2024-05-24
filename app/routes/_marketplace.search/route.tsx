@@ -1,44 +1,63 @@
 import { Fragment, useState, useEffect } from "react";
-import type {
-  LinksFunction,
-  LoaderFunctionArgs,
-} from "@remix-run/node";
-import { json } from "@remix-run/node";
-import { Link, useLoaderData, useParams, useSearchParams } from "@remix-run/react";
+import { Dialog, Disclosure, Transition } from "@headlessui/react";
 import {
-  Dialog,
-  Disclosure,
-  Popover,
-  Tab,
-  Transition,
-} from "@headlessui/react";
-import {
-  Hits,
   useHits,
   UseHitsProps,
   useNumericMenu,
   UseNumericMenuProps,
   HierarchicalMenu as AlgoliaHierarchicalMenu,
   useCurrentRefinements,
-  useConfigure,
   SortBy,
   HitsPerPage,
 } from "react-instantsearch";
 
 import { ChevronDownIcon, PlusIcon } from "@heroicons/react/20/solid";
-import {
-  Bars3Icon,
-  MagnifyingGlassIcon,
-  ShoppingBagIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 import type { Product } from "../../types/Product";
 
+import classNames from "~/utils/classNames";
 import Pagination from "../../components/Pagination";
 import HierarchicalMenu from "../../components/HierarchicalMenu";
 import ProductThumbnail from "~/components/ProductThumbnail";
 
+const filters = [
+  {
+    id: "color",
+    name: "Color",
+    options: [
+      { value: "white", label: "White" },
+      { value: "beige", label: "Beige" },
+      { value: "blue", label: "Blue" },
+      { value: "brown", label: "Brown" },
+      { value: "green", label: "Green" },
+      { value: "purple", label: "Purple" },
+    ],
+  },
+  {
+    id: "category",
+    name: "Category",
+    options: [
+      { value: "new-arrivals", label: "All New Arrivals" },
+      { value: "tees", label: "Tees" },
+      { value: "crewnecks", label: "Crewnecks" },
+      { value: "sweatshirts", label: "Sweatshirts" },
+      { value: "pants-shorts", label: "Pants & Shorts" },
+    ],
+  },
+  {
+    id: "sizes",
+    name: "Sizes",
+    options: [
+      { value: "xs", label: "XS" },
+      { value: "s", label: "S" },
+      { value: "m", label: "M" },
+      { value: "l", label: "L" },
+      { value: "xl", label: "XL" },
+      { value: "2xl", label: "2XL" },
+    ],
+  },
+];
 const breadcrumbs = [{ id: 1, name: "Men", href: "#" }];
 
 function CustomHits(props: UseHitsProps) {
@@ -75,57 +94,55 @@ export default function SearchResultsPage({ ...props }) {
   const [pageMode, setPageMode] = useState(PAGE_MODES.SEARCH);
 
   //
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const { items, canRefine, refine } = useCurrentRefinements(props);
 
   // const pageMode: string = PAGE_MODES.SEARCH;
 
   //
   return (
     <>
-    {pageMode === PAGE_MODES.CATEGORY ? (
-      <div className="border-b border-gray-200">
-        <nav
-          aria-label="Breadcrumb"
-          className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
-        >
-          <ol role="list" className="flex items-center space-x-4 py-4">
-            {breadcrumbs.map((breadcrumb) => (
-              <li key={breadcrumb.id}>
-                <div className="flex items-center">
-                  <a
-                    href={breadcrumb.href}
-                    className="mr-4 text-sm font-medium text-gray-900"
-                  >
-                    {breadcrumb.name}
-                  </a>
-                  <svg
-                    viewBox="0 0 6 20"
-                    aria-hidden="true"
-                    className="h-5 w-auto text-gray-300"
-                  >
-                    <path
-                      d="M4.878 4.34H3.551L.27 16.532h1.327l3.281-12.19z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </div>
+      {pageMode === PAGE_MODES.CATEGORY ? (
+        <div className="border-b border-gray-200">
+          <nav
+            aria-label="Breadcrumb"
+            className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+          >
+            <ol role="list" className="flex items-center space-x-4 py-4">
+              {breadcrumbs.map((breadcrumb) => (
+                <li key={breadcrumb.id}>
+                  <div className="flex items-center">
+                    <a
+                      href={breadcrumb.href}
+                      className="mr-4 text-sm font-medium text-gray-900"
+                    >
+                      {breadcrumb.name}
+                    </a>
+                    <svg
+                      viewBox="0 0 6 20"
+                      aria-hidden="true"
+                      className="h-5 w-auto text-gray-300"
+                    >
+                      <path
+                        d="M4.878 4.34H3.551L.27 16.532h1.327l3.281-12.19z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </div>
+                </li>
+              ))}
+              <li className="text-sm">
+                <a
+                  href="#"
+                  aria-current="page"
+                  className="font-medium text-gray-500 hover:text-gray-600"
+                >
+                  New Arrivals
+                </a>
               </li>
-            ))}
-            <li className="text-sm">
-              <a
-                href="#"
-                aria-current="page"
-                className="font-medium text-gray-500 hover:text-gray-600"
-              >
-                New Arrivals
-              </a>
-            </li>
-          </ol>
-        </nav>
-      </div>
-    ) : null}
+            </ol>
+          </nav>
+        </div>
+      ) : null}
       <main className="mx-auto px-4 pb-24 pt-10 sm:px-6 sm:pb-32 lg:max-w-7xl lg:px-8">
         {pageMode === PAGE_MODES.SEARCH ? (
           <div className="border-b border-gray-200 pb-6">
@@ -141,22 +158,30 @@ export default function SearchResultsPage({ ...props }) {
                 <CustomCurrentRefinements {...{}} />
               </div>
 
-              <div className="grid grid-cols-1 gap-y-4 md:gap-y-0 md:gap-x-4 md:flex align-middle mt-6 md:mt-0" >
-                <div className="align-middle" >
-                  <span className="text-sm text-neutral-600" >Ordenar por{" "}</span>
+              <div className="grid grid-cols-1 gap-y-4 md:gap-y-0 md:gap-x-4 md:flex align-middle mt-6 md:mt-0">
+                <div className="align-middle">
+                  <span className="text-sm text-neutral-600">Ordenar por </span>
                   <SortBy
                     className="inline-flex items-center text-sm text-neutral-600 max-w-32"
                     items={[
                       { value: "products", label: "Relevancia" },
-                      { value: "products_price_asc", label: "Precio ascendente" },
-                      { value: "products_price_desc", label: "Precio descendente" },
+                      {
+                        value: "products_price_asc",
+                        label: "Precio ascendente",
+                      },
+                      {
+                        value: "products_price_desc",
+                        label: "Precio descendente",
+                      },
                     ]}
                   />
                 </div>
 
-                <div className="align-middle" >
-                  <span className="text-sm text-neutral-600">Resultados por página{" "}</span>
-                  <HitsPerPage 
+                <div className="align-middle">
+                  <span className="text-sm text-neutral-600">
+                    Resultados por página{" "}
+                  </span>
+                  <HitsPerPage
                     className="inline-flex items-center text-sm text-neutral-600"
                     items={[
                       { value: 16, label: "16" },
@@ -243,6 +268,181 @@ export default function SearchResultsPage({ ...props }) {
             </div>
           </aside>
 
+          {/* MOBILE FILTERS OVERLAY */}
+          
+          <Transition show={mobileFiltersOpen}>
+            <Dialog
+              className="relative z-40 lg:hidden"
+              onClose={setMobileFiltersOpen}
+            >
+              <Transition.Child
+                enter="transition-opacity ease-linear duration-300"
+                enterFrom="opacity-0"
+                enterTo="opacity-100"
+                leave="transition-opacity ease-linear duration-300"
+                leaveFrom="opacity-100"
+                leaveTo="opacity-0"
+              >
+                <div className="fixed inset-0 bg-black bg-opacity-25" />
+              </Transition.Child>
+
+              <div className="fixed inset-0 z-40 flex">
+                <Transition.Child
+                  enter="transition ease-in-out duration-300 transform"
+                  enterFrom="translate-x-full"
+                  enterTo="translate-x-0"
+                  leave="transition ease-in-out duration-300 transform"
+                  leaveFrom="translate-x-0"
+                  leaveTo="translate-x-full"
+                >
+                  <Dialog.Panel className="relative ml-auto flex h-full w-full min-w-80 max-w-xs flex-col overflow-y-auto bg-white py-4 pb-6 shadow-xl">
+                    <div className="flex items-center justify-between px-4">
+                      <h2 className="text-lg font-medium text-gray-900">
+                        Filtros
+                      </h2>
+                      <button
+                        type="button"
+                        className="relative -mr-2 flex h-10 w-10 items-center justify-center p-2 text-gray-400 hover:text-gray-500"
+                        onClick={() => setMobileFiltersOpen(false)}
+                      >
+                        <span className="absolute -inset-0.5" />
+                        <span className="sr-only">Cerrar menu</span>
+                        <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    {/* Filters */}
+                    <form className="mt-4">
+                      {/* FILTERY BY CATEGORIES */}
+                      <Disclosure
+                        as="div"
+                        className="border-t border-gray-200 pb-4 pt-4"
+                      >
+                        {({ open }) => (
+                          <fieldset>
+                            <legend className="w-full px-2">
+                              <Disclosure.Button className="flex w-full items-center justify-between p-2 text-gray-400 hover:text-gray-500">
+                                <span className="text-sm font-medium text-gray-900">
+                                  Categorías
+                                </span>
+                                <span className="ml-6 flex h-7 items-center">
+                                  <ChevronDownIcon
+                                    className={classNames(
+                                      open ? "-rotate-180" : "rotate-0",
+                                      "h-5 w-5 transform"
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                </span>
+                              </Disclosure.Button>
+                            </legend>
+
+                            <Disclosure.Panel className="px-4 pb-2 pt-4">
+                              <HierarchicalMenu
+                                attributes={[
+                                  "categories.lvl0",
+                                  "categories.lvl1",
+                                ]}
+                                limit={100}
+                                sortBy={["name:asc"]}
+                                onClick={() => setMobileFiltersOpen(false)}
+                              />
+                            </Disclosure.Panel>
+                          </fieldset>
+                        )}
+                      </Disclosure>
+
+                      {/* FILTERY BY BRAND */}
+                      <Disclosure
+                        as="div"
+                        className="border-t border-gray-200 pb-4 pt-4"
+                      >
+                        {({ open }) => (
+                          <fieldset>
+                            <legend className="w-full px-2">
+                              <Disclosure.Button className="flex w-full items-center justify-between p-2 text-gray-400 hover:text-gray-500">
+                                <span className="text-sm font-medium text-gray-900">
+                                  Marcas
+                                </span>
+                                <span className="ml-6 flex h-7 items-center">
+                                  <ChevronDownIcon
+                                    className={classNames(
+                                      open ? "-rotate-180" : "rotate-0",
+                                      "h-5 w-5 transform"
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                </span>
+                              </Disclosure.Button>
+                            </legend>
+
+                            <Disclosure.Panel className="px-4 pb-2 pt-4">
+                              <HierarchicalMenu
+                                attributes={["brand.brand"]}
+                                limit={10}
+                                showMoreLimit={100}
+                                sortBy={["count:desc"]}
+                                showMore
+                              />
+                            </Disclosure.Panel>
+                          </fieldset>
+                        )}
+                      </Disclosure>
+
+                      {/* FILTERY BY PRICE */}
+                      <Disclosure
+                        as="div"
+                        className="border-t border-gray-200 pb-4 pt-4"
+                      >
+                        {({ open }) => (
+                          <fieldset>
+                            <legend className="w-full px-2">
+                              <Disclosure.Button className="flex w-full items-center justify-between p-2 text-gray-400 hover:text-gray-500">
+                                <span className="text-sm font-medium text-gray-900">
+                                  Precio
+                                </span>
+                                <span className="ml-6 flex h-7 items-center">
+                                  <ChevronDownIcon
+                                    className={classNames(
+                                      open ? "-rotate-180" : "rotate-0",
+                                      "h-5 w-5 transform"
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                </span>
+                              </Disclosure.Button>
+                            </legend>
+
+                            <Disclosure.Panel className="px-4 pb-2 pt-4">
+                              <NumericMenu
+                                attribute="price"
+                                items={[
+                                  { label: "Cualquier precio" },
+                                  { label: "Menos de $500", end: 500 },
+                                  {
+                                    label: "$500 a $1,000",
+                                    start: 500,
+                                    end: 1000,
+                                  },
+                                  {
+                                    label: "$1,000 a $2,000",
+                                    start: 1000,
+                                    end: 2000,
+                                  },
+                                  { label: "Más de $2,000", start: 2000 },
+                                ]}
+                              />
+                            </Disclosure.Panel>
+                          </fieldset>
+                        )}
+                      </Disclosure>
+                    </form>
+                  </Dialog.Panel>
+                </Transition.Child>
+              </div>
+            </Dialog>
+          </Transition>
+
           {/* MAIN CONTENT WRAPPER */}
           <section
             aria-labelledby="product-heading"
@@ -271,13 +471,10 @@ function NumericMenu(props: UseNumericMenuProps) {
   return (
     <ul>
       {items.map((item) => (
-        <li 
-          key={item.value}
-          className="mb-2"
-        >
+        <li key={item.value} className="mb-2">
           <input
             type="radio"
-            name={'fitler-price'}
+            name={"fitler-price"}
             id={`filter-${item.label}`}
             defaultChecked={item.isRefined}
             onChange={(event) => {
@@ -311,10 +508,7 @@ function CustomCurrentRefinements(props) {
           {/* <span>{item.label}</span> */}
 
           {item.refinements.map((refinement) => (
-            <span 
-              key={refinement.label}
-              className="inline-flex items-center"
-            >
+            <span key={refinement.label} className="inline-flex items-center">
               <span>{refinement.label}</span>
 
               <button

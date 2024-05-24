@@ -281,12 +281,12 @@ export default function ShoppingCart() {
             id="summary-heading"
             className="text-lg font-medium text-gray-900"
           >
-            Resumen de la orden
+            Resumen
           </h2>
 
           <dl className="mt-6 space-y-4">
             <div className="flex items-center justify-between">
-              <dt className="text-sm text-gray-600">Compra</dt>
+              <dt className="text-sm text-gray-600">Productos</dt>
               <dd className="text-sm font-medium text-gray-900">${ShoppingCartInstance.getSubtotal()}</dd>
             </div>
 
@@ -341,7 +341,10 @@ export default function ShoppingCart() {
             <button
               type="submit"
               disabled={cartShops.length === 0}
-              className="w-full rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+              className={classNames(
+                "w-full rounded-md border border-transparent bg-primary-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-50",
+                cartShops.length === 0 ? "cursor-not-allowed opacity-60" : ""
+              )}
             >
               Continuar
             </button>
@@ -349,7 +352,7 @@ export default function ShoppingCart() {
         </section>
       </cartForm.Form>
 
-      {/* Related products */}
+      {/* Related products 
       <section aria-labelledby="related-heading" className="mt-24">
         <h2 id="related-heading" className="text-lg font-medium text-gray-900">
           You may also like&hellip;
@@ -384,7 +387,7 @@ export default function ShoppingCart() {
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
     </div>
   );
 }

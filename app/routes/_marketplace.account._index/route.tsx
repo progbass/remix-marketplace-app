@@ -1,23 +1,18 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Form,
-  Link,
   useActionData,
   useNavigation,
-  useNavigate,
   useLoaderData,
 } from "@remix-run/react";
 import { ActionFunctionArgs, json } from "@remix-run/node";
 import { ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { PhotoIcon, UserCircleIcon } from "@heroicons/react/24/solid";
-import { Switch } from "@headlessui/react";
-import validator from "validator";
 import {
-  validateUserRegistrationForm,
   validateName,
   validateEmail,
   validatePassword,
   validateLastName,
+  validateUserProfileForm,
 } from "./validators";
 
 import AuthService from "~/services/Auth.service";
@@ -25,11 +20,6 @@ import getEnv from "get-env";
 import classNames from "~/utils/classNames";
 import Fetcher from "~/utils/fetcher";
 import { redirect } from "react-router-dom";
-
-const tabs = [
-  { name: "Mi cuenta", href: "#", current: false },
-  { name: "Compras", href: "#", current: true },
-];
 
 // Loader function
 export async function loader({ request }: ActionFunctionArgs) {
@@ -58,27 +48,27 @@ export async function action({ request }: ActionFunctionArgs) {
   // Handle form actions
   const formValues = {};
   formData.forEach((value, key) => {
-    console.log(key, value);
     formValues[key] = value;
   });
 
   // Validate form
-  errors = validateUserRegistrationForm(formValues);
+  errors = validateUserProfileForm(formValues);
 
   // Check for errors
   if (Object.keys(errors).length > 0) {
     return json({ formErrors: errors });
   }
 
-  // // Update shopping cart
+  // Update shopping cart
   const myFetcher = new Fetcher(user?.token, request);
-  const userSignupResponse = await myFetcher
-    .fetch(`${getEnv().API_URL}/user/register`, {
-      method: "POST",
+  const userProfileResponse = await myFetcher
+    .fetch(`${getEnv().API_URL}/user/profile`, {
+      method: "PUT",
       body: formData,
     })
     .catch((err) => {
-      errors = err?.errors;
+      console.log('ERROR ', errors)
+      errors = err?.errors || { backendError: "Ocurrió un error al actualizar la información. Intenta de nueva más tarde." };
     });
 
   // Check for errors and return
@@ -86,34 +76,13 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ formErrors: errors });
   }
 
-  await fetch(`${getEnv().API_URL}/sanctum/csrf-cookie`);
-
-  // Attempt to login user
-  let loginResponse = await AuthService.login({
-    request,
-    autoRedirect: false,
-  }).catch((error) => {
-    console.log("error", error);
-    const actionData = {
-      errors: ["El usuario o contraseña son incorrectos."],
-    };
-    return json(actionData);
-  });
-
-  // If login was unsuccessful, take users to login page
-  if (!loginResponse) {
-    return redirect("/login");
-  }
-  console.log("loginResponse", loginResponse);
-
   // Redirect to user profile
-  return redirect("/account");
+  return null//redirect("/account");
 }
 
 //
 export default function UserSignupPage() {
   const { userDetails } = useLoaderData<typeof loader>();
-  console.log(userDetails);
 
   // Navigation
   const navigation = useNavigation();
@@ -189,6 +158,10 @@ export default function UserSignupPage() {
             comunicación.
           </p>
 
+          {/* <div>
+            {actionData?.formErrors}
+          </div> */}
+
           <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
             <div className="sm:col-span-3">
               <InputText
@@ -257,7 +230,7 @@ export default function UserSignupPage() {
                     id="country"
                     name="country"
                     autoComplete="country-name"
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:max-w-xs sm:text-sm sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:max-w-xs sm:text-sm sm:leading-6"
                   >
                     <option>United States</option>
                     <option>Canada</option>
@@ -279,7 +252,7 @@ export default function UserSignupPage() {
                     name="street-address"
                     id="street-address"
                     autoComplete="street-address"
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:text-sm sm:leading-6"
                   />
                 </div>
               </div>
@@ -297,7 +270,7 @@ export default function UserSignupPage() {
                     name="city"
                     id="city"
                     autoComplete="address-level2"
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:text-sm sm:leading-6"
                   />
                 </div>
               </div>
@@ -315,7 +288,7 @@ export default function UserSignupPage() {
                     name="region"
                     id="region"
                     autoComplete="address-level1"
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:text-sm sm:leading-6"
                   />
                 </div>
               </div>
@@ -333,7 +306,7 @@ export default function UserSignupPage() {
                     name="postal-code"
                     id="postal-code"
                     autoComplete="postal-code"
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:text-sm sm:leading-6"
                   />
                 </div>
               </div> */}
@@ -348,8 +321,8 @@ export default function UserSignupPage() {
             Llena este formulario sólo si quieres cambiar tu contraseña.
           </p>
 
-          <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-            <div className="sm:col-start-1 sm:col-end-3">
+          <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8">
+            <div className="max-w-80">
               <InputText
                 label="Contraseña"
                 id="password"
@@ -366,7 +339,7 @@ export default function UserSignupPage() {
               />
             </div>
 
-            <div className="sm:col-sart-6 sm:col-end-8">
+            <div className="max-w-80">
               <InputText
                 label="Confirmar contraseña"
                 id="password-confirm"
@@ -386,10 +359,11 @@ export default function UserSignupPage() {
         </div>
       </div>
 
+      {/* SUBMIT BUTTON */}
       <div className="mt-6 flex items-center justify-end gap-x-6">
         <button
           type="submit"
-          className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
         >
           Actualizar
         </button>
@@ -426,8 +400,8 @@ const InputText = ({
           className={classNames(
             formErrors.length
               ? "text-red-900 pr-10 ring-red-300 placeholder:text-red-300 border-red-500 focus:ring-red-500"
-              : "text-gray-900 ring-gray-300 placeholder:text-gray-400 border-gray-300 focus:ring-indigo-600",
-            "block w-full rounded-md border-0 px-3.5 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+              : "text-gray-900 ring-gray-300 placeholder:text-gray-400 border-gray-300",
+            "block w-full rounded-md border-0 px-3.5 py-2 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:text-sm sm:leading-6"
           )}
           {...props}
         />

@@ -14,7 +14,7 @@ module.exports = {
   ],
   theme: {
     extend: {
-      colors
+      ...colors
     },
     // extend: {
     //   fontSize: {

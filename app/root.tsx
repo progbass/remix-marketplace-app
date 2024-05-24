@@ -41,6 +41,7 @@ import authenticator from "~/services/auth.server";
 import { FetcherConfigurationProvider } from "~/providers/FetcherConfigurationContext";
 import { ShoppingCartProvider } from "~/providers/ShoppingCartContext";
 import { MarketplaceCategoriesProvider } from "~/providers/MarketplaceCategoriesContext";
+import AuthProvider from "~/providers/AuthProvider";
 import { Fetcher } from "~/utils/fetcher";
 import CookieUtils from "set-cookie-parser";
 
@@ -192,47 +193,51 @@ function InstantSearchProvider({
 
               return window.location;
             },
-            // createURL({ qsModule, location, routeState }) {
-            //   // current search params 
-            //   const indexState = routeState[algoliaProductsIndex] || {};
-            //   const { origin, pathname, hash, search } = location;
-            //   // grab current query string and convert to object
-            //   const queryParameters = qsModule.parse(search.slice(1)) || {};
+            createURL({ qsModule, location, routeState }) {
+              // current search params 
+              const indexState = routeState[algoliaProductsIndex] || {};
+              const { origin, pathname, hash, search } = location;
+              // grab current query string and convert to object
+              const queryParameters = qsModule.parse(search.slice(1)) || {};
               
-            //   // if there is an active search
-            //   if (Object.keys(indexState).length ){
-            //     // merge the search params with the current query params
-            //     Object.assign(queryParameters, routeState);
-            //   }else{
-            //     // remove the search params
-            //     delete queryParameters[algoliaProductsIndex];
-            //   }
-            //   if (routeState.query) {
-            //     queryParameters.query = encodeURIComponent(routeState.query);
-            //   }
-            //   if (routeState.page !== 1) {
-            //     queryParameters.page = routeState.page;
-            //   }
-            //   if (routeState.brands) {
-            //     queryParameters.brand = routeState.brands.map(encodeURIComponent);
-            //   }
-            //   if (routeState.categories) {
-            //     queryParameters.categories = routeState.categories.map(encodeURIComponent);
-            //   }
+              // if there is an active search
+              if (Object.keys(indexState).length ){
+                // merge the search params with the current query params
+                Object.assign(queryParameters, routeState);
+              }else{
+                // remove the search params
+                delete queryParameters[algoliaProductsIndex];
+              }
+              if (routeState.query) {
+                queryParameters.query = encodeURIComponent(routeState.query);
+              }
+              if (routeState.page !== 1) {
+                queryParameters.page = routeState.page;
+              }
+              if (routeState.brands) {
+                queryParameters.brand = routeState.brands.map(encodeURIComponent);
+              }
+              if (routeState.categories) {
+                queryParameters.categories = routeState.categories.map(encodeURIComponent);
+              }
       
-            //   let queryString = qsModule.stringify(queryParameters);
+              let queryString = qsModule.stringify(queryParameters);
               
-            //   if(queryString.length){
-            //     queryString = `?${queryString}`;
-            //   }
+              if(queryString.length){
+                queryString = `?${queryString}`;
+              }
+
+              let targetPathname = pathname;
+              if(pathname != "/search"){
+                targetPathname = "/search";
+              }
       
-            //   return `${origin}${pathname}${queryString}${hash}`;
-            // },
+              return `${origin}${targetPathname}${queryString}${hash}`;
+            },
           }),
           stateMapping: {
             stateToRoute(uiState) {
               const indexUiState = uiState[algoliaProductsIndex];
-              // console.log("indexUiState", indexUiState);
               return {
                 q: indexUiState.query,
                 categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
@@ -242,12 +247,11 @@ function InstantSearchProvider({
               };
             },
             routeToState(routeState) {
-              // console.log("routeState ", routeState);
               return {
                 [algoliaProductsIndex]: {
                   query: routeState.q,
                   hierarchicalMenu: {
-                    ["categories.lvl0"]: routeState.categories,
+                    ["categories.lvl0"]: routeState.categories?.map(decodeURIComponent),
                     ["brand.brand"]: routeState.brand,
                   },
                   page: routeState.page,
@@ -309,7 +313,9 @@ export default function App() {
           >
             <MarketplaceCategoriesProvider items={marketplaceCategories}>
               <ShoppingCartProvider items={shoppingCart}>
-                <Outlet />
+                <AuthProvider currentUser={user} >
+                  <Outlet />
+                </AuthProvider>
               </ShoppingCartProvider>
             </MarketplaceCategoriesProvider>
           </InstantSearchProvider>

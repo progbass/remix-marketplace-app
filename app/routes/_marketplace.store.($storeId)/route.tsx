@@ -93,7 +93,7 @@ export default function StorePage() {
   return (
     <>
       <div>
-        <div className="bg-[length:740px_160px] bg-repeat bg-[url('https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/pattern.png')] h-20" />
+        <div className="bg-[length:740px_160px] bg-repeat bg-[url('https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/pattern.png')] h-16" />
         {/* <img
           className="h-32 w-full object-cover lg:h-48"
           src={
@@ -119,7 +119,7 @@ export default function StorePage() {
               {/* <p className="mt-2 text-sm text-gray-500">
                 {storeDetails.neighborhood}
               </p> */}
-              <p className="mt-4 text-gray-500">{parse(storeDetails.comments)}</p>
+              {/* <p className="mt-4 text-gray-500">{parse(storeDetails.comments)}</p> */}
             </div>
 
             <Tab.Group as="div" className="mt-4">

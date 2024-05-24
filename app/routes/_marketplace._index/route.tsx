@@ -1,6 +1,6 @@
 import { LoaderFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { StarIcon } from '@heroicons/react/20/solid'
+import { StarIcon } from "@heroicons/react/20/solid";
 
 import AuthService from "~/services/Auth.service";
 import { Fetcher } from "~/utils/fetcher";
@@ -18,17 +18,15 @@ const collections = [
     description: "Productos con descuentos increíbles",
     imageSrc:
       "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-hot-sale-2024.png",
-    imageAlt:
-      "Productos con descuentos increíbles",
+    imageAlt: "Descubre descuentos increíbles",
     href: "/collections/ofertas-hot-2024",
   },
   {
     name: "Día de las madres",
-    description: "Regálale algo que sí le guste",
+    description: "Regálale algo extraordinario",
     imageSrc:
       "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-dia-madres-2024.png",
-    imageAlt:
-      "Regálale algo que sí le guste",
+    imageAlt: "Regálale algo extraordinario",
     href: "/collections/dia-madres-2024",
   },
   {
@@ -74,28 +72,34 @@ const categories = [
   },
 ];
 
-export const loader: LoaderFunction = async ({ request }:LoaderFunctionArgs) => {
+export const loader: LoaderFunction = async ({
+  request,
+}: LoaderFunctionArgs) => {
   // If the user is already authenticated redirect to /dashboard directly
   const user = (await AuthService.isAuthenticated(request)) || null;
   const myFetcher = new Fetcher(user?.token, request);
 
   // Get featured products
-  const featuredProducts = await myFetcher.fetch(`${getEnv().API_URL}/productsRandom`, {
-    method: "GET"
-  });
+  const featuredProducts = await myFetcher.fetch(
+    `${getEnv().API_URL}/productsRandom`,
+    {
+      method: "GET",
+    }
+  );
 
   return {
     featuredProducts: featuredProducts?.one || [],
     trendyProducts: featuredProducts?.two || [],
     discounts: featuredProducts?.three || [],
   };
-}
+};
 
 export default function HomePage() {
-  const { featuredProducts, trendyProducts, discounts } = useLoaderData<typeof loader>();
+  const { featuredProducts, trendyProducts, discounts } =
+    useLoaderData<typeof loader>();
   const { indexUiState, setIndexUiState } = useInstantSearch();
 
-  function setSearchCategory(categoryName:string) {
+  function setSearchCategory(categoryName: string) {
     // Update Algolia index state
     setIndexUiState((prevIndexUiState) => ({
       ...prevIndexUiState,
@@ -173,22 +177,26 @@ export default function HomePage() {
         */}
       </div>
 
-      <section
-        aria-labelledby="featured-heading"
-        className="hidden lg:block"
-      >
+      <section aria-labelledby="featured-heading" className="hidden lg:block">
         <div className="overflow-hidden md:mx-auto md:max-w-7xl md:px-8 md:py-12">
           <div className="relative overflow-hidden rounded-md md:h-40 py-16 md:py-52">
             <div className="absolute inset-0">
               <img
-                src={"https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-herobanner-hot-sale-2024.png"}
-                // src="https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/65b2c89d0eb5d.jpg"
+                src={
+                  "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-herobanner-veggiorizo.png"
+                }
                 alt=""
                 className="h-full w-full object-cover object-center"
               />
             </div>
-            <div aria-hidden="true" className="relative h-40 w-full md:hidden" />
-            <div aria-hidden="true" className="relative h-52 w-full md:hidden" />
+            <div
+              aria-hidden="true"
+              className="relative h-40 w-full md:hidden"
+            />
+            <div
+              aria-hidden="true"
+              className="relative h-52 w-full md:hidden"
+            />
             {/* <div className="absolute inset-x-0 bottom-0 rounded-bl-lg rounded-br-lg bg-black bg-opacity-75 p-6 backdrop-blur backdrop-filter sm:flex sm:items-center sm:justify-between md:inset-x-auto md:inset-y-0 md:w-72 md:flex-col md:items-start md:rounded-bl-none md:rounded-tr-lg md:right-0">
               <div>
                 <h2 id="featured-heading" className="text-xl font-bold text-white">
@@ -233,20 +241,20 @@ export default function HomePage() {
               {collections.map((collection) => (
                 <div key={collection.name} className="group relative">
                   <div className="relative h-80 w-full overflow-hidden rounded-lg bg-white sm:aspect-h-1 sm:aspect-w-2 lg:aspect-h-1 lg:aspect-w-1 group-hover:opacity-75 sm:h-64">
-                    <img
-                      src={collection.imageSrc}
-                      alt={collection.imageAlt}
-                      className="h-full w-full object-cover object-center"
-                    />
+                    <Link to={collection.href}>
+                      <img
+                        src={collection.imageSrc}
+                        alt={collection.imageAlt}
+                        className="h-full w-full object-cover object-center"
+                      />
+                    </Link>
                   </div>
                   <h3 className="mt-6 text-sm text-gray-500">
-                    <Link to={collection.href}>
-                      <span className="absolute inset-0" />
-                      {collection.name}
-                    </Link>
+                    {/* <span className="absolute inset-0" /> */}
+                    {collection.description}
                   </h3>
                   <p className="text-base font-semibold text-gray-900">
-                    {collection.description}
+                    <Link to={collection.href}>{collection.name}</Link>
                   </p>
                 </div>
               ))}
@@ -296,7 +304,7 @@ export default function HomePage() {
                     </span>
                     <span
                       aria-hidden="true"
-                      className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-gray-800 opacity-50"
+                      className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-gray-800 opacity-50"
                     />
                     <span className="relative mt-auto text-center text-xl font-bold text-white">
                       {category.name}
@@ -309,26 +317,31 @@ export default function HomePage() {
         </div>
 
         <div className="mt-6 px-4 sm:hidden">
-          <a
-            href="#"
+          <Link
+            to="/search"
             className="block text-sm font-semibold text-indigo-600 hover:text-indigo-500"
           >
             Todas las categorías
             <span aria-hidden="true"> &rarr;</span>
-          </a>
+          </Link>
         </div>
       </section>
 
       {/* ABOUT SECTION */}
       <section className="mx-auto mt-32 max-w-7xl px-6 sm:mt-40 lg:px-8">
         <div className="mx-auto max-w-4xl lg:text-center">
-          <h2 className="text-base font-semibold leading-7 text-indigo-600">Lo mejor de México</h2>
+          <h2 className="text-base font-semibold leading-7 text-indigo-600">
+            Lo mejor de México
+          </h2>
           <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-          México Limited
+            México Limited
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-          Impulsamos el talento y la innovación mexicanos para fomentar y reflejar la riqueza cultural, la creatividad y el talento del país. 
-          Conectamos a vendedores y compradores que valoran la autenticidad, la calidad y la innovación del emprendimiento mexicano, fomentando el desarrollo del comercio local y nacional.
+            Impulsamos el talento y la innovación mexicanos para fomentar y
+            reflejar la riqueza cultural, la creatividad y el talento del país.
+            Conectamos a vendedores y compradores que valoran la autenticidad,
+            la calidad y la innovación del emprendimiento mexicano, fomentando
+            el desarrollo del comercio local y nacional.
           </p>
         </div>
         <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
@@ -336,15 +349,21 @@ export default function HomePage() {
             {[].map((feature) => (
               <div key={feature.name} className="flex flex-col">
                 <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                  <feature.icon className="h-5 w-5 flex-none text-indigo-600" aria-hidden="true" />
+                  <feature.icon
+                    className="h-5 w-5 flex-none text-indigo-600"
+                    aria-hidden="true"
+                  />
                   {feature.name}
                 </dt>
                 <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
                   <p className="flex-auto">{feature.description}</p>
                   <p className="mt-6">
-                    <a href={feature.href} className="text-sm font-semibold leading-6 text-indigo-600">
+                    <Link
+                      to={feature.href}
+                      className="text-sm font-semibold leading-6 text-indigo-600"
+                    >
                       Learn more <span aria-hidden="true">→</span>
-                    </a>
+                    </Link>
                   </p>
                 </dd>
               </div>
@@ -359,30 +378,32 @@ export default function HomePage() {
         // className="border-t border-gray-200 bg-gray-50"
       >
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-            <div className="relative flex items-center px-6 py-12 sm:px-10 sm:py-16 sm:mt-0">
-              <div className="absolute inset-0 overflow-hidden rounded-lg">
-                <img
-                  src={patternBackground}
-                  alt=""
-                  className="h-full w-full object-cover object-center saturate-0 filter"
-                />
-                <div className="absolute inset-0 bg-secondary-600 bg-opacity-90" />
-              </div>
-              <div className="relative mx-auto max-w-2xl text-center">
-                <h3 className="text-2xl font-bold tracking-tight text-white">
-                  ¿Eres creador o emprendes con productos increíbles?
-                </h3>
-                <p className="mt-2 text-gray-200">
-                   Únete a México Limited y lleva tu negocio al siguiente nivel. Conecta con potenciales clientes, expande tu alcance y aumenta tu probabilidad de ventas.{" "}
-                  <a
-                    href="#"
-                    className="whitespace-nowrap font-bold text-white hover:text-gray-200"
-                  >
-                    Conoce más<span aria-hidden="true"> &rarr;</span>
-                  </a>
-                </p>
-              </div>
+          <div className="relative flex items-center px-6 py-12 sm:px-10 sm:py-16 sm:mt-0">
+            <div className="absolute inset-0 overflow-hidden rounded-lg">
+              <img
+                src={patternBackground}
+                alt=""
+                className="h-full w-full object-cover object-center saturate-0 filter"
+              />
+              <div className="absolute inset-0 bg-secondary-600 bg-opacity-90" />
             </div>
+            <div className="relative mx-auto max-w-2xl text-center">
+              <h3 className="text-2xl font-bold tracking-tight text-white">
+                ¿Eres creador o emprendes con productos increíbles?
+              </h3>
+              <p className="mt-2 text-gray-200">
+                Únete a México Limited y lleva tu negocio al siguiente nivel.
+                Conecta con potenciales clientes, expande tu alcance y aumenta
+                tu probabilidad de ventas.{" "}
+                <Link
+                  to="/vende-en-mexico-limited"
+                  className="whitespace-nowrap font-bold text-white hover:text-gray-200"
+                >
+                  Conoce más<span aria-hidden="true"> &rarr;</span>
+                </Link>
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

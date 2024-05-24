@@ -17,7 +17,7 @@ export default function App() {
   const inputClass = `${
     hasErrors
       ? "ring-red-300 focus:ring-red-600 placeholder:text-red-300"
-      : "ring-gray-300 focus:ring-indigo-600 placeholder:text-gray-400"
+      : "ring-gray-300 focus:ring-secondary-600 placeholder:text-gray-400"
   } block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6`;
 
   // Render component
@@ -47,7 +47,7 @@ export default function App() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:text-sm sm:leading-6"
                 />
               </div>
             </div>
@@ -63,7 +63,7 @@ export default function App() {
                 <div className="text-sm">
                   <a
                     href="#"
-                    className="font-semibold text-indigo-600 hover:text-indigo-500"
+                    className="text-sm text-gray-500 hover:text-gray-400"
                   >
                     ¿Olvidaste tu contraseña?
                   </a>
@@ -76,7 +76,7 @@ export default function App() {
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-secondary-600 sm:text-sm sm:leading-6"
                 />
               </div>
             </div>
@@ -84,7 +84,7 @@ export default function App() {
             <div>
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="flex w-full justify-center rounded-md bg-primary-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
               >
                 Entrar
               </button>
@@ -95,7 +95,7 @@ export default function App() {
             ¿Aún no tienes una cuenta?{" "}
             <Link
               to="/signup"
-              className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+              className="font-semibold leading-6 text-primary-500 hover:text-primary-500"
             >
               Crea una cuenta ahora
             </Link>

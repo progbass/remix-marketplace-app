@@ -1,5 +1,5 @@
-import { Fragment } from "react";
-import { Form, Link } from "@remix-run/react";
+import { Fragment, memo, useEffect, useRef } from "react";
+import { Form, Link, NavLink } from "@remix-run/react";
 import { useNavigate } from "@remix-run/react";
 import { Popover, Transition, Menu } from "@headlessui/react";
 import { getAlgoliaResults } from "@algolia/autocomplete-js";
@@ -21,7 +21,11 @@ import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import { Autocomplete } from "./CustomISAutocomplete";
 import logoUrl from "~/statics/logo.svg";
 import { useMarketplaceCategories } from "~/providers/MarketplaceCategoriesContext";
-import { useInstantSearch } from "react-instantsearch";
+import {
+  useInstantSearch,
+  useHierarchicalMenu,
+  UseHierarchicalMenuProps,
+} from "react-instantsearch";
 
 const collectionsList = [
   { name: "Everything", href: "#" },
@@ -36,18 +40,40 @@ const navigation = {
   ],
 };
 
-//
-type DesktopMenuProps = {
-  onSearchSubmit?: (query: string) => void;
-  onMobileMenuOpen: (isOpen: boolean) => void;
-};
-export default function DesktopMenu({
-  onSearchSubmit = () => {},
-  onMobileMenuOpen = () => {},
-}: DesktopMenuProps) {
-  const { indexUiState, setIndexUiState } = useInstantSearch();
 
-  //
+// CATEGORIES MENU
+function CategoriesDropdowMenu({ onCategorySelect }) {
+  const { uiState, setUiState, setIndexUiState } = useInstantSearch();
+  const uiStateRef = useRef(uiState);
+
+  useEffect(() => {
+    uiStateRef.current = uiState;
+  }, [uiState]);
+
+  useEffect(() => {
+    return () => {
+      setTimeout(() => {
+        setUiState(uiStateRef.current);
+      }, 5);
+    };
+  }, [setIndexUiState]);
+
+  return (
+    <CategoriesMenu
+      attributes={["categories.lvl0"]}
+      limit={30}
+      sortBy={["name:asc"]}
+      onCategorySelect={onCategorySelect}
+    />
+  );
+}
+const CategoriesMenu = function ({
+  onCategorySelect = () => {}, 
+  ...props
+}: { onCategorySelect: Function
+} & UseHierarchicalMenuProps
+) {
+  const { refine, createURL } = useHierarchicalMenu(props);
   const marketplaceCategories: Array<any> = useMarketplaceCategories() || [];
 
   // Divide the marketplaceCategories into 3 columns
@@ -65,47 +91,88 @@ export default function DesktopMenu({
     ]);
   }
 
+  // Navigate to category
+  const navigateToCategory = (value) => {
+    // if (isModifierClick(event)) {
+    //   return;
+    // }
+    refine(value);
+    onCategorySelect();
+  };
+
+  return categoriesByColumn.map((categoryColum, columnIdx) => (
+    <div key={columnIdx} className="col-span-2 gap-x-8 gap-y-10">
+      {/* <p
+        id={`desktop-featured-heading-${columnIdx}`}
+        className="font-medium text-gray-900"
+      >
+        Featured
+      </p> */}
+      <ul
+        role="list"
+        aria-labelledby={`desktop-category-heading`}
+        className="mt-6 space-y-6 sm:mt-4 sm:space-y-4"
+      >
+        {categoryColum.map((item) => (
+          <li key={item.name} className="flex">
+            <NavLink
+              end
+              to={`${createURL(item.name)}`}
+              onClick={(event) => {
+                navigateToCategory(item.name);
+              }}
+              className={
+                ({ isActive, isPending }) =>
+                  classNames("text-base hover:text-gray-800")
+                //item.isRefined
+              }
+            >
+              {item.name}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ));
+};
+
+//
+type DesktopMenuProps = {
+  onSearchSubmit?: (query: string) => void;
+  onMobileMenuOpen: (isOpen: boolean) => void;
+  currentUser: null | object;
+};
+export default function DesktopMenu({
+  onSearchSubmit = () => {},
+  onMobileMenuOpen = () => {},
+  currentUser = null,
+}: DesktopMenuProps) {
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
   const cartTotalProductsCount = ShoppingCartInstance.getProductsCount();
-
-  // Navigate to category
-  const navigateToCategory = (categoryName: string, close: Function) => {
-    // Update Algolia index state
-    setIndexUiState((prevIndexUiState) => ({
-      ...prevIndexUiState,
-      hierarchicalMenu: {
-        ...prevIndexUiState.hierarchicalMenu,
-        ["categories.lvl0"]: [categoryName],
-      },
-    }));
-
-    // Close the menu panel
-    close();
-  };
 
   // Return component
   return (
     <header className="relative z-20">
       <nav aria-label="Top">
         {/* Top navigation */}
-        <div className="bg-gray-900">
+        <div className="bg-accent-900">
           <div className="mx-auto flex h-10 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-            {/* USER ZIP LOCATION */}
+            {/* USER ZIP LOCATION 
             <form className="hidden lg:block lg:flex-1">
               <div className="flex">
                 <label htmlFor="desktop-currency" className="sr-only">
                   Ingresa tu domicilio
                 </label>
-                {/* <p>
+                <p>
               Conoce el envío a tu ubicación
               Agrega tu código postal para ver costos y tiempos de entrega precisos en tu búsqueda.
-              </p> */}
-                <div className="group relative -ml-2 rounded-md border-transparent bg-gray-900 focus-within:ring-2 focus-within:ring-white">
+              </p> 
+                <div className="group relative -ml-2 rounded-md border-transparent bg-accent-900 focus-within:ring-2 focus-within:ring-white">
                   <select
                     id="desktop-currency"
                     name="currency"
-                    className="flex items-center rounded-md border-transparent bg-gray-900 bg-none py-0.5 pl-2 pr-5 text-sm font-medium text-white focus:border-transparent focus:outline-none focus:ring-0 group-hover:text-gray-100"
+                    className="flex items-center rounded-md border-transparent bg-accent-900 bg-none py-0.5 pl-2 pr-5 text-sm font-medium text-white focus:border-transparent focus:outline-none focus:ring-0 group-hover:text-gray-100"
                   >
                     <option>Ingresa tu domicilio</option>
                   </select>
@@ -118,21 +185,30 @@ export default function DesktopMenu({
                 </div>
               </div>
             </form>
+            */}
 
             {/* NOTIFICATION AND ANNOUNCEMENTS */}
-            <p className="flex-1 text-center text-sm font-medium text-white lg:flex-none">
+            <p className="self-center flex-1 text-center text-sm font-medium text-white lg:flex-none">
               Obtén 15% de descuento en tu primera compra
             </p>
 
             {/* USER ACCOUNT */}
             <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:space-x-6">
-              <Link
-                to="/login"
-                className="text-sm font-medium text-white hover:text-gray-100"
-              >
-                Accesar
-              </Link>
-              <span className="h-6 w-px bg-gray-600" aria-hidden="true" />
+              {/* LOGIN */}
+              {!currentUser ? (
+                <>
+                  <Link
+                    to="/login"
+                    className="text-sm font-medium text-white hover:text-gray-100"
+                  >
+                    Accesar
+                  </Link>
+
+                  <span className="h-6 w-px bg-gray-600" aria-hidden="true" />
+                </>
+              ) : null}
+
+              {/* SELLERS ACCESS */}
               <Link
                 to="/vende-en-mexico-limited"
                 className="text-sm font-medium text-white hover:text-gray-100"
@@ -190,7 +266,10 @@ export default function DesktopMenu({
                               leaveFrom="opacity-100"
                               leaveTo="opacity-0"
                             >
-                              <Popover.Panel className="absolute inset-x-0 top-full text-gray-500 sm:text-sm">
+                              <Popover.Panel
+                                className="absolute inset-x-0 top-full text-gray-500 sm:text-sm"
+                                unmount={false}
+                              >
                                 {/* Presentational element used to render the bottom shadow, if we put the shadow on the actual panel it pokes out the top, so we use this shorter element to hide the top of the shadow */}
                                 <div
                                   className="absolute inset-0 top-1/2 bg-white shadow"
@@ -200,46 +279,9 @@ export default function DesktopMenu({
                                 <div className="relative bg-white">
                                   <div className="mx-auto max-w-7xl px-8">
                                     <div className="grid grid-cols-8 items-start gap-x-8 gap-y-10 pb-12 pt-3">
-                                      {categoriesByColumn.map(
-                                        (categoryColum, columnIdx) => (
-                                          <div
-                                            key={columnIdx}
-                                            className="col-span-2 gap-x-8 gap-y-10"
-                                          >
-                                            {/* <p
-                                          id={`desktop-featured-heading-${columnIdx}`}
-                                          className="font-medium text-gray-900"
-                                        >
-                                          Featured
-                                        </p> */}
-                                            <ul
-                                              role="list"
-                                              aria-labelledby={`desktop-category-heading`}
-                                              className="mt-6 space-y-6 sm:mt-4 sm:space-y-4"
-                                            >
-                                              {categoryColum.map((category) => (
-                                                <li
-                                                  key={category.name}
-                                                  className="flex"
-                                                >
-                                                  <Link
-                                                    to={`/search?categories%5B0%5D=${category.name}`}
-                                                    onClick={(event) => {
-                                                      navigateToCategory(
-                                                        category.name,
-                                                        close
-                                                      );
-                                                    }}
-                                                    className="text-base hover:text-gray-800"
-                                                  >
-                                                    {category.name}
-                                                  </Link>
-                                                </li>
-                                              ))}
-                                            </ul>
-                                          </div>
-                                        )
-                                      )}
+                                      <CategoriesDropdowMenu
+                                        onCategorySelect={close}
+                                      />
                                     </div>
                                   </div>
                                 </div>
@@ -478,35 +520,78 @@ export default function DesktopMenu({
                               leaveFrom="transform opacity-100 scale-100"
                               leaveTo="transform opacity-0 scale-95"
                             >
-                              <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                              <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-secondary-600 ring-opacity-5 focus:outline-none">
                                 <Menu.Item>
-                                  {({ active }) => (
-                                    <Link
-                                      to="/login"
-                                      className={classNames(
-                                        active ? "bg-gray-100" : "",
-                                        "block px-4 py-2 text-sm text-gray-700"
-                                      )}
-                                    >
-                                      Iniciar sesión
-                                    </Link>
-                                  )}
-                                </Menu.Item>
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <Form method="post" action="/">
-                                      <button
-                                        type="submit"
+                                  {({ active }) => {
+                                    return !currentUser ? (
+                                      <Link
+                                        to="/login"
                                         className={classNames(
                                           active ? "bg-gray-100" : "",
                                           "block px-4 py-2 text-sm text-gray-700"
                                         )}
                                       >
-                                        Cerrar sesión
-                                      </button>
-                                    </Form>
-                                  )}
+                                        Iniciar sesión
+                                      </Link>
+                                    ) : (
+                                      <Link
+                                        to="/account"
+                                        className={classNames(
+                                          active ? "bg-gray-100" : "",
+                                          "block px-4 py-2 text-sm text-gray-700"
+                                        )}
+                                      >
+                                        Mi cuenta
+                                      </Link>
+                                    );
+                                  }}
                                 </Menu.Item>
+
+                                {/* SELLERS ACCESS */}
+                                <Menu.Item>
+                                  {({ active }) => {
+                                    return currentUser && currentUser?.brand ? (
+                                      <Link
+                                        to="/admin"
+                                        className={classNames(
+                                          active ? "bg-gray-100" : "",
+                                          "block px-4 py-2 text-sm text-gray-700"
+                                        )}
+                                      >
+                                        Ir a mi tienda
+                                      </Link>
+                                    ) : (
+                                      <Link
+                                        to="/vende-en-mexico-limited"
+                                        className={classNames(
+                                          active ? "bg-gray-100" : "",
+                                          "block px-4 py-2 text-sm text-gray-700"
+                                        )}
+                                      >
+                                        Vende con nosotros
+                                      </Link>
+                                    );
+                                  }}
+                                </Menu.Item>
+
+                                {/* LOGOUT BUTTON */}
+                                {currentUser ? (
+                                  <Menu.Item>
+                                    {({ active }) => (
+                                      <Form method="post" action="/logout">
+                                        <button
+                                          type="submit"
+                                          className={classNames(
+                                            active ? "bg-gray-100" : "",
+                                            "w-full text-left block px-4 py-2 text-sm text-error-600"
+                                          )}
+                                        >
+                                          Cerrar sesión
+                                        </button>
+                                      </Form>
+                                    )}
+                                  </Menu.Item>
+                                ) : null}
                               </Menu.Items>
                             </Transition>
                           </Menu>
