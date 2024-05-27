@@ -18,6 +18,7 @@ import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import classNames from "~/utils/classNames";
 import ShoppingCart from "~/utils/ShoppingCart";
 import { validateShippingAddressForm } from "./formValidators";
+import { formatPrice } from "~/utils/formatPrice";
 
 //
 type OrderSummaryProps = {
@@ -40,6 +41,7 @@ export default function OrderSummary({
   const ShoppingCartInstance = useShoppingCart();
   const [localShoppingCart, setLocalShoppingCart] =
     useState<ShoppingCart>(ShoppingCartInstance);
+  // const localShoppingCart = ShoppingCartInstance;
   const storesList = localShoppingCart.getCart().cart;
 
   // Handle the delivery method change
@@ -49,7 +51,6 @@ export default function OrderSummary({
     const [fieldName, storeIdString, courierId, serviceType] =
       shippingMethodStringId.split("-");
     const storeId = parseInt(storeIdString);
-    console.log(storeId, courierId, serviceType);
 
     // Find the selected delivery method whithin the shop
     const deliveryMethod = storesList
@@ -82,7 +83,7 @@ export default function OrderSummary({
         checkoutForm.submit(formData, {
           method: "POST",
         });
-      }, 10);
+      }, 50);
     }
   };
 
@@ -106,6 +107,7 @@ export default function OrderSummary({
       return false;
     }
     if (cartStep === "review") {
+      console.log('form missing :', checkoutForm)
       // Disable if the corresponding form is not comleted
       if(!isFormCompleted) return true;
       
@@ -115,6 +117,9 @@ export default function OrderSummary({
 
     return true;
   };
+
+
+  console.log('AQUI LA INFO DE LA TIENDA ', ShoppingCartInstance)
 
   // Render the component
   return (
@@ -209,7 +214,7 @@ export default function OrderSummary({
 
                       <div className="flex flex-1 items-end justify-between pt-2">
                         <p className="mt-1 text-sm font-medium text-gray-900">
-                          ${product.price}
+                          {formatPrice(product.price)}
                         </p>
 
                         <div className="ml-4">
@@ -226,11 +231,11 @@ export default function OrderSummary({
                             onChange={(event) =>
                               onProductQuantityChange(product, event)
                             }
-                            className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                            className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-secondary-500 focus:outline-none focus:ring-1 focus:ring-secondary-500 sm:text-sm"
                           >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((_, index) => (
-                              <option value={index} key={index}>
-                                {index}
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].slice(0, product.stock).map((value) => (
+                              <option value={value} key={value}>
+                                {value}
                               </option>
                             ))}
                           </select>
@@ -363,11 +368,12 @@ export default function OrderSummary({
             </li>
           ))}
         </ul>
+
         <dl className="space-y-6 border-t border-gray-200 px-4 py-6 sm:px-6">
           <div className="flex items-center justify-between">
             <dt className="text-sm">Subtotal {}</dt>
             <dd className="text-sm font-medium text-gray-900">
-              ${localShoppingCart.getSubtotal()}
+              {formatPrice(localShoppingCart.getSubtotal())}
             </dd>
             <input
               type="hidden"
@@ -383,7 +389,7 @@ export default function OrderSummary({
                 {`(${localShoppingCart.getCart().cart.length} envíos)`}
               </dt>
               <dd className="text-sm font-medium text-gray-900">
-                ${localShoppingCart.getShippingCost()}
+                {formatPrice(localShoppingCart.getShippingCost())}
               </dd>
               <input
                 type="hidden"
@@ -400,7 +406,7 @@ export default function OrderSummary({
           <div className="flex items-center justify-between border-t border-gray-200 pt-6">
             <dt className="text-base font-medium">Total</dt>
             <dd className="text-base font-medium text-gray-900">
-              ${localShoppingCart.getTotal()}
+              {formatPrice(localShoppingCart.getTotal())}
             </dd>
             <input
               type="hidden"
@@ -417,7 +423,7 @@ export default function OrderSummary({
             className={classNames(
               isSubmitDisabled()
                 ? "cursor-not-allowed opacity-50 bg-gray-400"
-                : "cursor-pointer bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500 ",
+                : "cursor-pointer bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 ",
               "w-full rounded-md border border-transparent px-4 py-3 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50"
             )}
           >

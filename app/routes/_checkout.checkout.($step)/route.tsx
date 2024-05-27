@@ -26,6 +26,7 @@ import ThankYou from "./ThankYou";
 import ShoppingCart from "~/utils/ShoppingCart";
 import DialogOverlay from "~/components/DialogOverlay";
 import { useFetcher } from "@remix-run/react";
+import { getSession } from "~/services/session.server";
 
 //
 const STRIPE_REDIRECT_URL = "http://localhost:3000/purchase";
@@ -51,9 +52,10 @@ const checkoutStepsModel = [
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const cartStep = params.step;
   let checkoutSteps = checkoutStepsModel;
+  let session = await getSession(request.headers.get("cookie"));
 
   // Config custom data fetcher
-  const fetcher = new Fetcher(null, request);
+  const fetcher = new Fetcher(session.get("token"), request);
 
   // Fetch the shopping cart
   const shoppingCart = await fetcher.fetch(`${getEnv().API_URL}/cart`, {
@@ -186,6 +188,7 @@ type ActionErrors = {
 export let action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   let errors: ActionErrors = {};
+  let session = await getSession(request.headers.get("cookie"));
 
   //log all form values
   for (var pair of formData.entries()) {
@@ -193,7 +196,7 @@ export let action = async ({ request }: ActionFunctionArgs) => {
   }
 
   // Create a new fetcher instance
-  const fetcher = new Fetcher(null, request);
+  const fetcher = new Fetcher(session.get("token"), request);
 
   // Handle the form actions
   const cartStep = formData.get("step");
@@ -235,7 +238,9 @@ export let action = async ({ request }: ActionFunctionArgs) => {
         });
 
       // Return data
-      console.log("Updated shipping method ", updatedShoppingCart);
+      updatedShoppingCart.cart.map((item) => {
+        console.log("Updated shipping method ", item.selectedShippingMethod);
+      })
       return {
         cart: updatedShoppingCart,
       };
@@ -259,8 +264,9 @@ export let action = async ({ request }: ActionFunctionArgs) => {
       console.log("ORDER PAYMENT REFERENCE ", orderPayment);
 
       // Return data
+      // return redirect("/checkout/review");
       return {
-        step: "review",
+        step: "purchase_confirmation",
         errors,
         purchase: orderPayment,
       };
@@ -316,6 +322,7 @@ export default function CheckoutPage() {
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
   ShoppingCartInstance.setCart(shoppingCart, false);
+  console.log("LOS SHIPPING QUOTES SON: ", shippingQuotes)
   ShoppingCartInstance.setShippingQuotes(shippingQuotes?.deliveries || []);
 
   // Determine corresponding UI form
@@ -376,11 +383,14 @@ export default function CheckoutPage() {
     }
   }
   useEffect(() => {
+    console.log("checkoutForm ", checkoutForm);
     if (
       checkoutForm.state === "idle" &&
-      checkoutForm.data?.step == "review" &&
+      checkoutForm.data?.step == "purchase_confirmation" &&
       checkoutForm.data?.purchase.type == "success"
     ) {
+      console.log("passing the confirmation  ");
+
       // Confirm stripe payment
       handlePaymentConfirmation(checkoutForm.data?.purchase);
     }
@@ -432,7 +442,7 @@ export default function CheckoutPage() {
                     <Link
                       to={step.href}
                       aria-current="page"
-                      className="text-indigo-600"
+                      className={step.status === "current" ? "text-secondary-600" : "text-secondary-500"}
                     >
                       {step.name}
                     </Link>

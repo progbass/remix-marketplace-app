@@ -20,54 +20,68 @@ import Fetcher from "~/utils/fetcher";
 import { useFetcherConfiguration } from "~/providers/FetcherConfigurationContext";
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import ShoppingCart, { ShoppingCartType } from "~/utils/ShoppingCart";
+import { getSession } from "~/services/session.server";
 
 export let loader: LoaderFunction = async ({ request, params }) => {
+  let session = await getSession(request.headers.get("cookie"));
+  
   //
-  const fetcher = new Fetcher(null, request);
+  const fetcher = new Fetcher(session.get("token"), request);
   const shoppingCart = await fetcher.fetch(`${getEnv().API_URL}/cart`, {
     method: "GET",
   });
   const shoppingCartInstance = new ShoppingCart(shoppingCart);
+  const cartStep = params.step 
 
-  const stripeIntentFormData = new FormData();
-  stripeIntentFormData.append("payment_method_id", "");
-  stripeIntentFormData.append(
-    "shipping",
-    JSON.stringify(shoppingCartInstance.getShipping())
-  );
-  stripeIntentFormData.append(
-    "total",
-    shoppingCartInstance.getTotal().toString()
-  );
+  // If we're not confirming the purchase...
+  if(cartStep !== "purchase_confirmation"){
+    //
+    const stripeIntentFormData = new FormData();
+    stripeIntentFormData.append("payment_method_id", "");
+    stripeIntentFormData.append(
+      "shipping",
+      JSON.stringify(shoppingCartInstance.getShipping())
+    );
+    stripeIntentFormData.append(
+      "total",
+      shoppingCartInstance.getTotal().toString()
+    );
 
-  const stripePaymentIntent = await fetcher.fetch(
-    `${getEnv().API_URL}/stripe/Installments`,
-    {
-      method: "POST",
-      body: stripeIntentFormData,
-    }
-  );
-  console.log("Stripe Payment Intent Loaded ", stripePaymentIntent);
+    const stripePaymentIntent = await fetcher.fetch(
+      `${getEnv().API_URL}/stripe/Installments`,
+      {
+        method: "POST",
+        body: stripeIntentFormData,
+      }
+    );
+
+    // Return the loader data
+    return {
+      stripe_public_key: getEnv().STRIPE_PUBLIC_KEY,
+      paymentIntent: stripePaymentIntent.intent_id,
+      stripeConfig: {
+        // passing the client secret obtained from the server
+        clientSecret: stripePaymentIntent?.client_secret,
+        // intentId: stripePaymentIntent.intent_id,
+      },
+    };
+  }
+
   return {
-    paymentIntent: stripePaymentIntent.intent_id,
-    stripeConfig: {
-      // passing the client secret obtained from the server
-      clientSecret: stripePaymentIntent?.client_secret,
-      // intentId: stripePaymentIntent.intent_id,
-    },
-  };
+    stripe_public_key: getEnv().STRIPE_PUBLIC_KEY,
+  }
 };
 
-// Make sure to call `loadStripe` outside of a component’s render to avoid
-// recreating the `Stripe` object on every render.
-const stripePromise = loadStripe(
-  "pk_test_51LZfLsKgxTsOar06R9CimiLBdaPo3UDbeNrKHXP03bv8JFJDKje6Sn4tQlecYl33igJ6X6sV6NA6jn2yFU0YX4rl00RfSZNH53"
-);
+
 
 export default function () {
   // Get loader data
-  const { stripeConfig, paymentIntent } =
-    useLoaderData<typeof loader>();
+  const { stripeConfig, paymentIntent, stripe_public_key } = useLoaderData<typeof loader>();
+
+  // Make sure to call `loadStripe` outside of a component’s render to avoid
+  // recreating the `Stripe` object on every render.
+  const stripePromise = loadStripe(stripe_public_key);
+  
 
   // Render component
   return (

@@ -17,6 +17,8 @@ import classNames from "~/utils/classNames";
 import getEnv from "get-env";
 import Fetcher from "~/utils/fetcher";
 import {useShoppingCart} from '~/providers/ShoppingCartContext';
+import { getSession } from "~/services/session.server";
+import { formatPrice } from "~/utils/formatPrice";
 
 
 const relatedProducts = [
@@ -41,9 +43,10 @@ export async function action({
 }>{ 
   const formData = await request.formData();
   const formAction = formData.get('action');
+  let session = await getSession(request.headers.get("cookie"));
   
   // Create a new Fetcher instance
-  const myFetcher = new Fetcher(null, request);
+  const myFetcher = new Fetcher(session.get("token"), request);
 
   // Handle the form actions
   let cart:ShoppingCartType | {} = {};
@@ -173,16 +176,22 @@ export default function ShoppingCart() {
                         <input type="hidden" name={`stores[${shop.id}][products][modelo]`} defaultValue={product.modelo} />
                         <input type="hidden" name={``} defaultValue={product.quantity} />
                         <div className="flex-shrink-0">
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="h-24 w-24 rounded-md object-cover object-center sm:h-48 sm:w-48"
-                          />
+                          <Link
+                            to={`/product/${product.id}`}
+                            className="font-medium text-gray-700 hover:text-gray-800"
+                          >
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="h-24 w-24 rounded-md object-cover object-center sm:h-48 sm:w-48"
+                            />
+                          </Link>
                         </div>
 
                         <div className="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
                           <div className="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
                             <div>
+                              {/* PRODUCT NAME */}
                               <div className="flex justify-between">
                                 <h3 className="text-sm">
                                   <Link
@@ -193,19 +202,39 @@ export default function ShoppingCart() {
                                   </Link>
                                 </h3>
                               </div>
-                              <div className="mt-1 flex text-sm">
-                                <p className="text-gray-500">{'product.color'}</p>
-                                {/* {product.size ? (
-                                  <p className="ml-4 border-l border-gray-200 pl-4 text-gray-500">
-                                    {product.size}
+
+                              {/* PRODUCT VARIATIONS */}
+                              {product.modelo !== null && (
+                                <div className="mt-1 flex text-sm">
+                                  <p className="text-gray-500">
+                                    <span >
+                                      Talla/modelo:{" "}
+                                    </span>
+
+                                    <span >
+                                      {product.namemodel_size || ""}
+                                      {product.namemodel_size && product.namemodel_model
+                                        ? `${product.namemodel_size} / ${product.namemodel_model}`
+                                        : ""}
+                                      {product.namemodel || ""}
+                                    </span>
                                   </p>
-                                ) : null} */}
-                              </div>
+                                </div>
+                              )}
+
+                              {/* PRICE AND QUANTITY */}
                               <p className="mt-1 text-sm font-medium text-gray-900">
-                                {product.price}
+                                {formatPrice(product.price * product.quantity)}
+
+                                {product.quantity > 1 ? (
+                                  <span className="text-gray-500 font-normal">
+                                   {" "}{formatPrice(product.price)} c/u
+                                  </span>
+                                ) : null}
                               </p>
                             </div>
 
+                            {/* QUANTITY AND REMOVE COMPONENTS */}
                             <div className="mt-4 sm:mt-0 sm:pr-9">
                               <label
                                 htmlFor={`stores[${shop.id}][products][quantity]`}
@@ -219,14 +248,15 @@ export default function ShoppingCart() {
                                 defaultValue={product.quantity}
                                 onChange={event => handleProductQuantityChange(product, event)}
                                 className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
-                              >{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((_, index) => (
+                              >{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].slice(0, product.stock).map((value) => (
                                 <option 
-                                  value={index}
-                                  key={index}
-                                >{index}</option>
+                                  value={value}
+                                  key={value}
+                                >{value}</option>
                               ))}
                               </select>
 
+                              {/* REMOVE PRODUCTS */}
                               <div className="absolute right-0 top-0">
                                 <button
                                   type="button"
@@ -243,7 +273,7 @@ export default function ShoppingCart() {
                             </div>
                           </div>
 
-                          <p className="mt-4 flex space-x-2 text-sm text-gray-700">
+                          {/* <p className="mt-4 flex space-x-2 text-sm text-gray-700">
                             {product?.stock ? (
                               <CheckIcon
                                 className="h-5 w-5 flex-shrink-0 text-green-500"
@@ -261,7 +291,7 @@ export default function ShoppingCart() {
                                 ? "In stock"
                                 : `Ships in ${'product.leadTime'}`}
                             </span>
-                          </p>
+                          </p> */}
                         </div>
                       </div>
                     ))}
@@ -287,7 +317,7 @@ export default function ShoppingCart() {
           <dl className="mt-6 space-y-4">
             <div className="flex items-center justify-between">
               <dt className="text-sm text-gray-600">Productos</dt>
-              <dd className="text-sm font-medium text-gray-900">${ShoppingCartInstance.getSubtotal()}</dd>
+              <dd className="text-sm font-medium text-gray-900">{formatPrice(ShoppingCartInstance.getSubtotal())}</dd>
             </div>
 
             {/*
@@ -333,7 +363,7 @@ export default function ShoppingCart() {
               <dt className="text-base font-medium text-gray-900">
                 Subtotal
               </dt>
-              <dd className="text-base font-medium text-gray-900">${ShoppingCartInstance.getSubtotal()}</dd>
+              <dd className="text-base font-medium text-gray-900">{formatPrice(ShoppingCartInstance.getSubtotal())}</dd>
             </div>
           </dl>
 
