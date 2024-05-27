@@ -1,6 +1,8 @@
 import { redirect } from "@remix-run/node";
 import { sessionStorage } from "./session.server";
 import { AuthorizationError } from "remix-auth";
+import { Fetcher } from "~/utils/fetcher";
+import CookieUtils from "set-cookie-parser";
 import authenticator from "../services/auth.server";
 
 import getEnv from "../../get-env";
@@ -35,7 +37,6 @@ type UserData = {
   email: string;
 };
 
-console.log('AuthService', getEnv());
 // AUTHENTICATION SERVICE
 class AuthService {
   private API_URL: string = getEnv().API_URL;
@@ -56,14 +57,20 @@ class AuthService {
         "Bad Credentials: Password must be a string"
       );
 
+    // Get the CSRF value
+    const csrfResponse = await fetch(`${this.API_URL}/sanctum/csrf-cookie`);
+    const csrfCookies = await this.getCookiesFromResponse(csrfResponse);
+    const xsrfCookie = csrfCookies.find((cookie) => cookie.name === "XSRF-TOKEN");
+
     // Attempt to login
     console.log(`${this.API_URL}/login`);
-    console.log({ email, password });
+    // console.log({ email, password });
     const loginResponse = await fetch(`${this.API_URL}/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        "X-XSRF-TOKEN": xsrfCookie,
       },
       body: JSON.stringify({ email: data.email, password: data.password }),
     }).catch((err) => {
@@ -74,23 +81,47 @@ class AuthService {
     if (loginResponse.ok) {
       // Get the login response
       const user = await loginResponse.json();
-      return await Promise.resolve(user);
+
+      return await Promise.resolve({
+        response: loginResponse,
+        user: user,
+      }); //await Promise.resolve(user);
     }
-    console.log(loginResponse);
+
     throw new AuthorizationError("Wrong credentials");
   }
 
-  async login({ request, autoRedirect = true }): Promise<Response | User | null> {
+  async login({
+    request,
+    autoRedirect = true,
+  }): Promise<Response | User | null> {
     let currentUser;
+    let userCookies;
+    let headers;
+    let xsrfCookie;
+    let sessionCookie;
+
     // Attempt to authenticate the user
     try {
-      currentUser = await authenticator.authenticate("user-pass", request, {
-        throwOnError: true,
-        // failureRedirect: '/login',
-      });
-      
+      const { user, response: userResponse } = await authenticator.authenticate(
+        "user-pass",
+        request,
+        {
+          throwOnError: true,
+          // failureRedirect: '/login',
+        }
+      );
+
+      const userCookies = await this.getCookiesFromResponse(userResponse);
+
+      xsrfCookie = userCookies.find((cookie) => cookie.name === "XSRF-TOKEN");
+      sessionCookie = userCookies.find(
+        (cookie) => cookie.name === getEnv().API_SESSION_NAME
+      );
+      currentUser = user;
 
     } catch (error) {
+      console.log("error", error);
       // // Because redirects work by throwing a Response, you need to check if the
       // // caught error is a response and return it or throw it again
       // if (error instanceof Response) return error;
@@ -101,29 +132,47 @@ class AuthService {
       // }
       // here the error is a generic error that another reason may throw
       throw new Error(error);
-    }console.log('currentUser', currentUser);
+    }
 
     // commit the session
-    const headers = await this.setSession(request, currentUser);
+    headers = await this.setSession(
+      request,
+      currentUser,
+      sessionCookie?.value,
+      xsrfCookie?.value
+    );
 
-    //
+    // Add the auth cookies to the response
     return autoRedirect ? redirect("/", { headers }) : [currentUser, headers];
   }
 
+  async getCookiesFromResponse(response) {
+    // Parse the cookies from the response and put them into an array
+    const cookieHeader = response.headers.get("Set-Cookie") || undefined;
+    var splitCookieHeaders: Array<any> =
+      CookieUtils.splitCookiesString(cookieHeader);
+    var cookies: Array<any> = CookieUtils.parse(splitCookieHeaders);
+
+    return cookies;
+  }
+
   async getCurrentUser({ request }) {
-    const user = (await this.isAuthenticated(request)) as User;
-    return await Promise.resolve(user);
+    // const user = (await this.isAuthenticated(request)) as User;
+    // return await Promise.resolve(user);
 
     //
     let response;
-    let token = await this.currentToken(request);
     try {
-      response = fetch(`${this.API_URL}/user`, {
+      let session = await sessionStorage.getSession(
+        request.headers.get("Cookie")
+      );
+
+      const myFetcher = new Fetcher(session.get("token"), request)
+      response = await myFetcher.fetch(`${this.API_URL}/user`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          Authorization: `Bearer ${token}`,
         },
       });
     } catch (e) {
@@ -134,33 +183,33 @@ class AuthService {
     return response;
   }
 
-  async currentToken(request=null) {
+  async currentToken(request = null) {
     if (request) {
       let session = await sessionStorage.getSession(
         request.headers.get("Cookie")
       );
       return session.get(authenticator.sessionKey);
     }
-    try{
-        // if(document){
-        //     let getting = document.cookies.get({
-        //     url: tabs[0].url,
-        //     name: "favorite-color",
-        //     });
-        //     getting.then(logCookie);
-        //  }
-         let session = await sessionStorage.getSession();
-          return session.get('Authorization');
-    } catch (err){
-        console.log('Error getting cookie');
-        console.log(err)
+    try {
+      // if(document){
+      //     let getting = document.cookies.get({
+      //     url: tabs[0].url,
+      //     name: "favorite-color",
+      //     });
+      //     getting.then(logCookie);
+      //  }
+      let session = await sessionStorage.getSession();
+      return session.get("Authorization");
+    } catch (err) {
+      console.log("Error getting cookie");
+      console.log(err);
     }
 
     //
     return Promise.reject("No request object");
   }
 
-  async setSession(request, user): Promise<any> {
+  async setSession(request, user, userCookie, xsrfCookie): Promise<any> {
     // Get the session
     let session = await sessionStorage.getSession(
       request.headers.get("Cookie")
@@ -168,16 +217,29 @@ class AuthService {
 
     // Save the user token in the session
     session.set(authenticator.sessionKey, user);
+    session.set("token", user?.token);
+    session.set("laravel_session", userCookie); //user);
+    session.set("csrf", xsrfCookie);
 
     // commit the session
     let headers = new Headers({
       "Set-Cookie": await sessionStorage.commitSession(session),
     });
+    // headers.append(
+    //   "Set-Cookie",
+    //   `${
+    //     getEnv().API_SESSION_NAME
+    //   }=${userCookie}; path=/; samesite=lax; SameSite=None; Secure`
+    // );
+    // headers.append(
+    //   "Set-Cookie",
+    //   `XSRF-TOKEN=${xsrfCookie}; path=/; samesite=lax; SameSite=None; Secure`
+    // );
+    headers.append("Authorization", `Bearer ${user?.token}`);
     return headers;
   }
 
   async isAuthenticated(request) {
-    const test = await authenticator.isAuthenticated(request);
     return authenticator.isAuthenticated(request);
   }
 

@@ -16,7 +16,7 @@ interface User {
 
 // Create an instance of the authenticator, pass a generic with what
 // strategies will return and will store in the session
-const authenticator = new Authenticator<User | Error | null>(sessionStorage);
+const authenticator = new Authenticator<object | Error | null>(sessionStorage);
 
 // Tell the Authenticator to use the form strategy
 authenticator.use(
@@ -24,11 +24,8 @@ authenticator.use(
         // get the data from the form...
         let email = form.get('email') as string;
         let password = form.get('password') as string; 
-        
 
-    console.log('currentUserasdasd asdasd ', email, password);
-
-        let userData = await AuthService.loginAuthenticatorHandler({ email, password }, request)
+        const {response:userResponse, user:userData} = await AuthService.loginAuthenticatorHandler({ email, password }, request)
             .catch((e) => {
                 throw new AuthorizationError(e);
             });
@@ -36,15 +33,18 @@ authenticator.use(
         // Return user data if login was successful
         if(userData.token) {
             return {
-                id: userData.id,
-                name: userData.name,
-                lastname: userData.lastname,
-                phone: userData.phone,
-                email: userData.email,
-                brand: userData.brand,
-                nickname: '',
-                avatar: userData.avatar,
-                token: userData.token
+                response: userResponse,
+                user: {    
+                    id: userData.id,
+                    name: userData.name,
+                    lastname: userData.lastname,
+                    phone: userData.phone,
+                    email: userData.email,
+                    brand: userData.brand,
+                    nickname: '',
+                    avatar: userData.avatar,
+                    token: userData.token
+                }
             };
         }
 

@@ -59,50 +59,6 @@ export const loader: LoaderFunction = async ({
   const user = (await AuthService.isAuthenticated(request)) || null;
   let session = await getSession(request.headers.get("cookie"));
 
-  // Set the Cookies sent from the API server for Auth, CSRF, and Session management
-  let headers = undefined;
-  // Verify if the session is already set
-  if (!session.get(getEnv().API_SESSION_NAME)) {
-    console.log("---- GETTING THE SESSION COOKIE FROM THE API SERVER ----");
-    // Call the API server to get the session cookie
-    const cookieResponse = await fetch(
-      `${getEnv().API_URL}/sanctum/csrf-cookie`
-    );
-
-    // Parse the cookies from the response and put them into an array
-    const cookieHeader = cookieResponse.headers.get("Set-Cookie") || undefined;
-    var splitCookieHeaders: Array<any> =
-      CookieUtils.splitCookiesString(cookieHeader);
-    var cookies: Array<any> = CookieUtils.parse(splitCookieHeaders);
-
-    // Search for the getEnv().API_SESSION_NAME cookie
-    // (Note: this needs to be the same as the API server's session name)
-    const sessionCookie = cookies.find(
-      (cookie) => cookie.name === getEnv().API_SESSION_NAME
-    );
-    const xsrfCookie = cookies.find((cookie) => cookie.name === "XSRF-TOKEN");
-
-    // Save the sessionId in the session
-    session.set(getEnv().API_SESSION_NAME, sessionCookie?.value);
-    session.set("XSRF-TOKEN", xsrfCookie.value);
-    // session.set(authenticator.sessionKey, xsrfCookie?.value);
-
-    // commit the session and add the auth cookies to the response
-    headers = new Headers({
-      "Set-Cookie": await sessionStorage.commitSession(session),
-    });
-    headers.append(
-      "Set-Cookie",
-      `${
-        getEnv().API_SESSION_NAME
-      }=${sessionCookie?.value}; path=/; samesite=lax; SameSite=None; Secure`
-    );
-    headers.append(
-      "Set-Cookie",
-      `XSRF-TOKEN=${xsrfCookie?.value}; path=/; samesite=lax; SameSite=None; Secure`
-    );
-  }
-
   // Algolia InstantSearch SSR
   const serverUrl = request.url;
   const serverState = await getServerState(
@@ -111,11 +67,12 @@ export const loader: LoaderFunction = async ({
   );
 
   // Fetch the shopping cart items
-  const myFetcher = new Fetcher(user?.token, request);
+  const myFetcher = new Fetcher(session.get("token"), request);
   const shoppingCartItems = await myFetcher
     .fetch(`${getEnv().API_URL}/cart`, {
       method: "GET",
       headers: {
+        "Content-Type": "application/json",
         Accept: "application/json",
       },
     })
@@ -128,7 +85,7 @@ export const loader: LoaderFunction = async ({
   const facets = await algoliaIndex
     .search("", {
       facets: ["categories.lvl0"],
-      maxFacetHits: 10,
+      maxFacetHits: 15,
       hitsPerPage: 0,
     })
     .catch((err) => {
@@ -145,6 +102,8 @@ export const loader: LoaderFunction = async ({
   });
 
   // Return the loader data including headers
+  console.log("SSR CART RESULTS shoppingCartItems", shoppingCartItems);
+  console.log("SSR CART RESULTS USER ", user);
   return json(
     {
       user: user,
@@ -158,117 +117,9 @@ export const loader: LoaderFunction = async ({
       shoppingCartItems,
       marketplaceCategories: marketplaceCategories || [],
     },
-    { ...(headers ? { headers } : {}) }
+    // { ...(headers ? { headers } : {}) }
   );
 };
-
-export async function action({ request, context }: ActionFunctionArgs) {
-  console.log("logout action ");
-  await AuthService.logout(request);
-}
-
-type PageProps = {
-  serverState?: InstantSearchServerState;
-  serverUrl: string;
-  children?: React.ReactNode;
-};
-
-// Instant Search Provider
-function InstantSearchProvider({
-  serverState,
-  serverUrl,
-  children,
-}: PageProps) {
-  return (
-    <InstantSearchSSRProvider {...serverState}>
-      <InstantSearch
-        searchClient={algoliaSearchClient}
-        indexName={algoliaProductsIndex}
-        routing={{
-          router: history({
-            getLocation() {
-              if (typeof window === "undefined") {
-                return new URL(serverUrl);
-              }
-
-              return window.location;
-            },
-            createURL({ qsModule, location, routeState }) {
-              // current search params 
-              const indexState = routeState[algoliaProductsIndex] || {};
-              const { origin, pathname, hash, search } = location;
-              // grab current query string and convert to object
-              const queryParameters = qsModule.parse(search.slice(1)) || {};
-              
-              // if there is an active search
-              if (Object.keys(indexState).length ){
-                // merge the search params with the current query params
-                Object.assign(queryParameters, routeState);
-              }else{
-                // remove the search params
-                delete queryParameters[algoliaProductsIndex];
-              }
-              if (routeState.query) {
-                queryParameters.query = encodeURIComponent(routeState.query);
-              }
-              if (routeState.page !== 1) {
-                queryParameters.page = routeState.page;
-              }
-              if (routeState.brands) {
-                queryParameters.brand = routeState.brands.map(encodeURIComponent);
-              }
-              if (routeState.categories) {
-                queryParameters.categories = routeState.categories.map(encodeURIComponent);
-              }
-      
-              let queryString = qsModule.stringify(queryParameters);
-              
-              if(queryString.length){
-                queryString = `?${queryString}`;
-              }
-
-              let targetPathname = pathname;
-              if(pathname != "/search"){
-                targetPathname = "/search";
-              }
-      
-              return `${origin}${targetPathname}${queryString}${hash}`;
-            },
-          }),
-          stateMapping: {
-            stateToRoute(uiState) {
-              const indexUiState = uiState[algoliaProductsIndex];
-              return {
-                q: indexUiState.query,
-                categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
-                brand: indexUiState.hierarchicalMenu?.["brand.brand"],
-                page: indexUiState.page,
-                price: indexUiState.numericMenu?.["price"],
-              };
-            },
-            routeToState(routeState) {
-              return {
-                [algoliaProductsIndex]: {
-                  query: routeState.q,
-                  hierarchicalMenu: {
-                    ["categories.lvl0"]: routeState.categories?.map(decodeURIComponent),
-                    ["brand.brand"]: routeState.brand,
-                  },
-                  page: routeState.page,
-                  numericMenu: {
-                    ["price"]: routeState.price,
-                  },
-                },
-              };
-            },
-          },
-        }}
-      >
-        {children}
-      </InstantSearch>
-    </InstantSearchSSRProvider>
-  );
-}
 
 // MAIN APP COMPONENT
 export default function App() {
@@ -281,6 +132,9 @@ export default function App() {
     marketplaceCategories,
   } = useLoaderData<typeof loader>();
 
+  console.log("ROOT COMPONENT shoppingCartItems", shoppingCartItems);
+  console.log(user);
+
   // Configure the fetcher
   const fetcher = new Fetcher(user ? user.token : null);
 
@@ -292,9 +146,14 @@ export default function App() {
     <html lang="es" className="h-full bg-gray-100">
       <head>
         <title>Marketplace</title>
-        <meta name="description" content="Marketplace" />
-        <meta name="author" content="Marketplace" />
-        <meta name="keywords" content="Marketplace" />
+        <meta
+          name="description"
+          content="México Limited es más que un marketplace, es un movimiento que impulsa el talento, la creatividad y la innovación mexicanos. 
+          Puedes explorar y adquirir productos únicos directamente de emprendedores y PyMes de todo México. 
+          Desde artesanías tradicionales hasta productos innovadores, cada compra en México Limited es un voto a favor del crecimiento de la economía local y el apoyo al talento mexicano."
+        />
+        <meta name="author" content="México Limited" />
+        <meta name="keywords" content="emprendimiento México creadores artesanías" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="data:image/x-icon;base64,AA" />
         <Meta />
@@ -305,6 +164,7 @@ export default function App() {
           }}
         />
       </head>
+
       <body className="h-full">
         <FetcherConfigurationProvider fetcher={fetcher}>
           <InstantSearchProvider
@@ -313,7 +173,7 @@ export default function App() {
           >
             <MarketplaceCategoriesProvider items={marketplaceCategories}>
               <ShoppingCartProvider items={shoppingCart}>
-                <AuthProvider currentUser={user} >
+                <AuthProvider currentUser={user}>
                   <Outlet />
                 </AuthProvider>
               </ShoppingCartProvider>
@@ -350,5 +210,110 @@ export function ErrorBoundary() {
         <LiveReload />
       </body>
     </html>
+  );
+}
+
+// Instant Search Provider
+type PageProps = {
+  serverState?: InstantSearchServerState;
+  serverUrl: string;
+  children?: React.ReactNode;
+};
+function InstantSearchProvider({
+  serverState,
+  serverUrl,
+  children,
+}: PageProps) {
+  return (
+    <InstantSearchSSRProvider {...serverState}>
+      <InstantSearch
+        searchClient={algoliaSearchClient}
+        indexName={algoliaProductsIndex}
+        routing={{
+          router: history({
+            getLocation() {
+              if (typeof window === "undefined") {
+                return new URL(serverUrl);
+              }
+
+              return window.location;
+            },
+            createURL({ qsModule, location, routeState }) {
+              // current search params
+              const indexState = routeState[algoliaProductsIndex] || {};
+              const { origin, pathname, hash, search } = location;
+              // grab current query string and convert to object
+              const queryParameters = qsModule.parse(search.slice(1)) || {};
+
+              // if there is an active search
+              if (Object.keys(indexState).length) {
+                // merge the search params with the current query params
+                Object.assign(queryParameters, routeState);
+              } else {
+                // remove the search params
+                delete queryParameters[algoliaProductsIndex];
+              }
+              if (routeState.query) {
+                queryParameters.query = encodeURIComponent(routeState.query);
+              }
+              if (routeState.page !== 1) {
+                queryParameters.page = routeState.page;
+              }
+              if (routeState.brands) {
+                queryParameters.brand =
+                  routeState.brands.map(encodeURIComponent);
+              }
+              if (routeState.categories) {
+                queryParameters.categories =
+                  routeState.categories.map(encodeURIComponent);
+              }
+
+              let queryString = qsModule.stringify(queryParameters);
+
+              if (queryString.length) {
+                queryString = `?${queryString}`;
+              }
+
+              let targetPathname = pathname;
+              if (pathname != "/search") {
+                targetPathname = "/search";
+              }
+
+              return `${origin}${targetPathname}${queryString}${hash}`;
+            },
+          }),
+          stateMapping: {
+            stateToRoute(uiState) {
+              const indexUiState = uiState[algoliaProductsIndex];
+              return {
+                q: indexUiState.query,
+                categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
+                brand: indexUiState.hierarchicalMenu?.["brand.brand"],
+                page: indexUiState.page,
+                price: indexUiState.numericMenu?.["price"],
+              };
+            },
+            routeToState(routeState) {
+              return {
+                [algoliaProductsIndex]: {
+                  query: routeState.q,
+                  hierarchicalMenu: {
+                    ["categories.lvl0"]:
+                      routeState.categories?.map(decodeURIComponent),
+                    ["brand.brand"]: routeState.brand,
+                  },
+                  page: routeState.page,
+                  numericMenu: {
+                    ["price"]: routeState.price,
+                  },
+                },
+              };
+            },
+          },
+        }}
+      >
+        {children}
+      </InstantSearch>
+    </InstantSearchSSRProvider>
   );
 }
