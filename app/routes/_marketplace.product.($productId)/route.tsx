@@ -24,6 +24,7 @@ import SelectBox from "~/components/SelectBox";
 import DialogOverlay from "~/components/DialogOverlay";
 import ProductThumbnail from "~/components/ProductThumbnail";
 import { formatPrice } from "~/utils/formatPrice";
+import { getSession } from "~/services/session.server";
 import {
   Configure,
   Hits,
@@ -143,6 +144,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const action = formData.get("action");
+  let session = await getSession(request.headers.get("cookie"));
 
   // Handle form actions
   switch (action) {
@@ -154,7 +156,7 @@ export async function action({ request }: ActionFunctionArgs) {
       });
 
       // Update shopping cart
-      const myFetcher = new Fetcher(null, request);
+      const myFetcher = new Fetcher(session.get("token"), request);
       const shoppingCartItems = await myFetcher
         .fetch(`${getEnv().API_URL}/cart/add`, {
           method: "POST",

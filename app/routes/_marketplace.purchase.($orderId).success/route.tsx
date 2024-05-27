@@ -10,11 +10,15 @@ import Fetcher from "~/utils/fetcher";
 import { formatDate } from "~/utils/dateUtils";
 
 import getEnv from "get-env";
+import { getSession } from "~/services/session.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const orderId = params.orderId;
+  let session = await getSession(request.headers.get("cookie"));
+  
 
-  const fetcher = new Fetcher(null, request);
+  // Create custom fetcher
+  const fetcher = new Fetcher(session.get("token"), request);
 
   // Retrieve payment intent status
   const stripe2 = new Stripe(getEnv().STRIPE_SECRET_KEY);
@@ -61,6 +65,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     paymentIntent,
   };
 }
+export async function action(){
+  console.log("asdlkmasdlk asdlkmasd asdlkmasd asdlkm")
+}
+
 
 //
 export default function ThankYou() {
