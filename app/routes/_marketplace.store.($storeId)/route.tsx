@@ -93,7 +93,7 @@ export default function StorePage() {
   return (
     <>
       <div>
-        <div className="bg-[length:740px_160px] bg-repeat bg-[url('https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/pattern.png')] h-16" />
+        <div className="bg-[length:740px_160px] bg-repeat bg-[url('https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/pattern.png')] h-16" />
         {/* <img
           className="h-32 w-full object-cover lg:h-48"
           src={

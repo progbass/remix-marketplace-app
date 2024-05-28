@@ -17,7 +17,7 @@ const collections = [
     name: "Las ofertas más hot",
     description: "Productos con descuentos increíbles",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-hot-sale-2024.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-collections-hot-sale-2024.png",
     imageAlt: "Descubre descuentos increíbles",
     href: "/collections/ofertas-hot-2024",
   },
@@ -25,7 +25,7 @@ const collections = [
     name: "Día de las madres",
     description: "Regálale algo extraordinario",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-dia-madres-2024.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-collections-dia-madres-2024.png",
     imageAlt: "Regálale algo extraordinario",
     href: "/collections/dia-madres-2024",
   },
@@ -33,7 +33,7 @@ const collections = [
     name: "Productos de primavera",
     description: "Artículos para disfrutar la temporada",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-spring-2025.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-collections-spring-2025.png",
     imageAlt: "Artículos para disfrutar la temporada",
     href: "/collections/primavera-2024",
   },
@@ -43,32 +43,32 @@ const categories = [
     name: "Hogar & Decoración",
     href: "/search?categories%5B0%5D=Hogar%20%26%20Decoración",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-categories-hogar.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-categories-hogar.png",
   },
   {
     name: "Ropa & Calzado",
     href: "/search?categories%5B0%5D=Ropa%20%26%20Calzado",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-categories-ropa.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-categories-ropa.png",
   },
   {
     name: "Vinos & Licores",
     slug: "vinos-licores",
     href: "/search?categories%5B0%5D=Vinos%20%26%20Licores",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/65bd256ea8128.jpg",
+      "https://buckets.mexicolimited.com/production-bucket/user-uploads/photos/65bd256ea8128.jpg",
   },
   {
     name: "Alimentos & Bebidas",
     href: "/search?categories%5B0%5D=Alimentos%20%26%20Bebidas",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/user-uploads/photos/q9g9H1c86xQ8EtgZXwGgcGZ5ZddbbAqLLuJbESaG.jpg",
+      "https://buckets.mexicolimited.com/production-bucket/user-uploads/photos/q9g9H1c86xQ8EtgZXwGgcGZ5ZddbbAqLLuJbESaG.jpg",
   },
   {
     name: "Salud & Belleza",
     href: "/search?categories%5B0%5D=Vinos%20&%20Licores",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-categories-salud.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-categories-salud.png",
   },
 ];
 
@@ -183,7 +183,7 @@ export default function HomePage() {
             <div className="absolute inset-0">
               <img
                 src={
-                  "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-herobanner-veggiorizo.png"
+                  "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-herobanner-veggiorizo.png"
                 }
                 alt=""
                 className="h-full w-full object-cover object-center"

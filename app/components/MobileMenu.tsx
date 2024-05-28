@@ -20,7 +20,7 @@ const collections = [
     name: "Las ofertas más hot",
     description: "Productos con descuentos increíbles",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-hot-sale-2024.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-collections-hot-sale-2024.png",
     imageAlt: "Descubre descuentos increíbles",
     href: "/collections/ofertas-hot-2024",
   },
@@ -28,7 +28,7 @@ const collections = [
     name: "Día de las madres",
     description: "Regálale algo extraordinario",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-dia-madres-2024.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-collections-dia-madres-2024.png",
     imageAlt: "Regálale algo extraordinario",
     href: "/collections/dia-madres-2024",
   },
@@ -36,7 +36,7 @@ const collections = [
     name: "Productos de primavera",
     description: "Artículos para disfrutar la temporada",
     imageSrc:
-      "https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/desktop-collections-spring-2025.png",
+      "https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/desktop-collections-spring-2025.png",
     imageAlt: "Artículos para disfrutar la temporada",
     href: "/collections/primavera-2024",
   },

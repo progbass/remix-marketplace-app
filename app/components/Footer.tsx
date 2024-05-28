@@ -191,7 +191,7 @@ export default function Footer({}: FooterProps) {
         </div>
       </div>
 
-      <div className="bg-[length:600px_130px] bg-repeat bg-[url('https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/pattern.png')] h-6" />
+      <div className="bg-[length:600px_130px] bg-repeat bg-[url('https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/pattern.png')] h-6" />
     </footer>
   );
 }
