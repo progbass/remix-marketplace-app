@@ -11,9 +11,7 @@ import Fetcher from "~/utils/fetcher";
 
 // Make sure to call `loadStripe` outside of a component’s render to avoid
 // recreating the `Stripe` object on every render.
-const stripePromise = loadStripe(
-  "pk_test_51LZfLsKgxTsOar06R9CimiLBdaPo3UDbeNrKHXP03bv8JFJDKje6Sn4tQlecYl33igJ6X6sV6NA6jn2yFU0YX4rl00RfSZNH53"
-);
+const stripePromise = loadStripe(getEnv().STRIPE_PUBLIC_KEY);
 
 // Loader function
 export async function loader({ request, params }: LoaderFunctionArgs) {
