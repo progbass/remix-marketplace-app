@@ -8,6 +8,7 @@ import {
   ClockIcon,
   QuestionMarkCircleIcon,
   XMarkIcon as XMarkIconMini,
+  TrashIcon
 } from "@heroicons/react/20/solid";
 
 import type { Product } from "~/types/Product";
@@ -264,10 +265,7 @@ export default function ShoppingCart() {
                                   className="-m-2 inline-flex p-2 text-gray-400 hover:text-gray-500"
                                 >
                                   <span className="sr-only">Eliminar</span>
-                                  <XMarkIconMini
-                                    className="h-5 w-5"
-                                    aria-hidden="true"
-                                  />
+                                  <TrashIcon className="h-5 w-5" aria-hidden="true" />
                                 </button>
                               </div>
                             </div>
