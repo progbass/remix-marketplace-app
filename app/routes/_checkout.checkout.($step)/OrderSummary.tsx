@@ -1,5 +1,5 @@
-import { Link, useFetcher } from "@remix-run/react";
-import { useEffect, useState } from "react";
+import { Link } from "@remix-run/react";
+import { memo, useState } from "react";
 import { FetcherWithComponents } from "@remix-run/react";
 import { RadioGroup } from "@headlessui/react";
 import {
@@ -10,14 +10,13 @@ import {
 
 import type {
   ShippingMethod,
+  ShippingQuote,
   ShoppingCartProduct,
   ShoppingCartShop,
   ShoppingCartType,
 } from "~/utils/ShoppingCart";
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import classNames from "~/utils/classNames";
-import ShoppingCart from "~/utils/ShoppingCart";
-import { validateShippingAddressForm } from "./formValidators";
 import { formatPrice } from "~/utils/formatPrice";
 
 //
@@ -29,7 +28,7 @@ type OrderSummaryProps = {
   onProductRemove: (product: any) => void;
   onProductQuantityChange: (product: any, quantity: any) => void;
 };
-export default function OrderSummary({
+export default memo(function ({
   cartStep,
   checkoutForm,
   checkoutFormRef,
@@ -39,87 +38,50 @@ export default function OrderSummary({
 }: OrderSummaryProps) {
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
-  const [localShoppingCart, setLocalShoppingCart] =
-    useState<ShoppingCart>(ShoppingCartInstance);
-  // const localShoppingCart = ShoppingCartInstance;
+  const localShoppingCart = ShoppingCartInstance;
   const storesList = localShoppingCart.getCart().cart;
 
   // Handle the delivery method change
-  const handleDeliveryMethodChange = (shippingMethodStringId: string) => {
-    // The format of the shippingMethodStringId is `shippingMethod-${storeId}-${courierId}-${serviceType}`;
-    // Retrieve the storeId, courierId and serviceType from the shippingMethodStringId
-    const [fieldName, storeIdString, courierId, serviceType] =
-      shippingMethodStringId.split("-");
-    const storeId = parseInt(storeIdString);
-
-    // Find the selected delivery method whithin the shop
-    const deliveryMethod = storesList
-      .find((store) => store.id === storeId)
-      ?.shippingQuote?.deliveries.find(
-        (delivery: ShippingMethod) =>
-          delivery.courierId == courierId && delivery.serviceType == serviceType
-      );
-    storesList.find((store) => {
-      console.log(store.id, storeId);
-      return store.id === storeId;
-    });
-
-    // Update shopping cart
-    if (deliveryMethod) {
-      // Update the shopping cart with the selected delivery method (locally)
-      // Clone the instance of the deliveryMethod to have an immutable object
-      const deliveryMethodClone = JSON.parse(JSON.stringify(deliveryMethod));
-      ShoppingCartInstance.setShippingMethod(storeId, deliveryMethodClone);
-
-      // Update the local state
-      setLocalShoppingCart(ShoppingCartInstance);
-
-      // Save the selected delivery method to the server
-      // The form has a delay to allow the DOM to update the hidden inputs
-      setTimeout(() => {
-        // Submit the form asynchronously
-        const formData = new FormData(checkoutFormRef.current);
-        formData.set("step", "setShippingMethod"); // Set the action handler
-        checkoutForm.submit(formData, {
-          method: "POST",
-        });
-      }, 50);
-    }
+  const handleDeliveryMethodChange = (storeId: number, deliveryMethod: ShippingMethod) => {
+    // Save the selected delivery method to the server
+    // The form has a delay to allow the DOM to update the hidden inputs
+    setTimeout(() => {
+      // Submit the form asynchronously
+      const formData = new FormData(checkoutFormRef.current);
+      formData.set("step", "setShippingMethod"); // Set the action handler
+      checkoutForm.submit(formData, {
+        method: "POST",
+      });
+    }, 50);
   };
 
   // Determine submit button disabled state
-  function isSubmitDisabled () {
+  function isSubmitDisabled() {
     // Disable if the form is not present
-    if(!checkoutFormRef) return true;
+    if (!checkoutFormRef) return true;
 
     // Disable if the form is being submitted
-    if (
-      checkoutForm.state === "submitting"
-      || checkoutForm.state === "loading"
-    ) return true;
+    if (checkoutForm.state === "submitting" || checkoutForm.state === "loading")
+      return true;
 
     //
     if (cartStep === "shipping") {
       // Disable if the corresponding form is not comleted
-      if(!isFormCompleted) return true;
+      if (!isFormCompleted) return true;
 
       // The form can be submitted
       return false;
     }
     if (cartStep === "review") {
-      console.log('form missing :', checkoutForm)
       // Disable if the corresponding form is not comleted
-      if(!isFormCompleted) return true;
-      
+      if (!isFormCompleted) return true;
+
       // The form can be submitted
       return false;
     }
 
     return true;
-  };
-
-
-  console.log('AQUI LA INFO DE LA TIENDA ', ShoppingCartInstance)
+  }
 
   // Render the component
   return (
@@ -132,6 +94,8 @@ export default function OrderSummary({
           {storesList.map((store: ShoppingCartShop, index) => (
             <li key={store.id} className="px-4 py-6 sm:px-6">
               <h3 className="font-medium">{store.name}</h3>
+
+              {/* HIDDEN INPUTS */}
               {
                 // Include all products in the cart as hidden inputs
                 store.products.map((product, productIndex) => {
@@ -174,6 +138,7 @@ export default function OrderSummary({
                 defaultValue={`${store?.location}`}
               />
 
+              {/* PRODUCTS LIST */}
               {store.products.map((product: ShoppingCartProduct) => (
                 <div key={product.id} className="mt-5 relative">
                   <div className="flex">
@@ -233,11 +198,13 @@ export default function OrderSummary({
                             }
                             className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-secondary-500 focus:outline-none focus:ring-1 focus:ring-secondary-500 sm:text-sm"
                           >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].slice(0, product.stock).map((value) => (
-                              <option value={value} key={value}>
-                                {value}
-                              </option>
-                            ))}
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                              .slice(0, product.stock)
+                              .map((value) => (
+                                <option value={value} key={value}>
+                                  {value}
+                                </option>
+                              ))}
                           </select>
                         </div>
                       </div>
@@ -246,125 +213,11 @@ export default function OrderSummary({
                 </div>
               ))}
 
-              {store.shippingQuote?.deliveries &&
-                store.shippingQuote?.deliveries?.length > 0 && (
-                  <div className="mt-5 border-gray-200 ">
-                    <input
-                      type="hidden"
-                      name={`stores[${store.id}][selectedShippingMethod][courier]`}
-                      defaultValue={`${store?.selectedShippingMethod?.courier}`}
-                    />
-                    <input
-                      type="hidden"
-                      name={`stores[${store.id}][selectedShippingMethod][courierId]`}
-                      defaultValue={`${store?.selectedShippingMethod?.courierId}`}
-                    />
-                    <input
-                      type="hidden"
-                      name={`stores[${store.id}][selectedShippingMethod][serviceType]`}
-                      defaultValue={`${store?.selectedShippingMethod?.serviceType}`}
-                    />
-                    <input
-                      type="hidden"
-                      name={`stores[${store.id}][selectedShippingMethod][serviceName]`}
-                      defaultValue={`${store?.selectedShippingMethod?.serviceName}`}
-                    />
-                    <input
-                      type="hidden"
-                      name={`stores[${store.id}][selectedShippingMethod][deliveryTimestamp]`}
-                      defaultValue={`${store?.selectedShippingMethod?.deliveryTimestamp}`}
-                    />
-                    <input
-                      type="hidden"
-                      name={`stores[${store.id}][selectedShippingMethod][amount]`}
-                      defaultValue={`${store?.selectedShippingMethod?.amount}`}
-                    />
-
-                    <RadioGroup
-                      defaultValue={`shippingMethod-${store.id}-${store?.selectedShippingMethod?.courierId}-${store?.selectedShippingMethod?.serviceType}`}
-                      onChange={handleDeliveryMethodChange}
-                    >
-                      <RadioGroup.Label className="text-md text-gray-900">
-                        Método de envío
-                      </RadioGroup.Label>
-
-                      <div className="mt-4 grid grid-cols-1 gap-y-2 sm:grid-cols-2 lg:grid-cols-1 sm:gap-x-4">
-                        {store.shippingQuote?.deliveries &&
-                          store.shippingQuote?.deliveries.map(
-                            (deliveryMethod: ShippingMethod) => (
-                              <RadioGroup.Option
-                                key={`shippingMethod-${store.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
-                                value={`shippingMethod-${store.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
-                                className={({ checked, active }) =>
-                                  classNames(
-                                    checked
-                                      ? "border-transparent"
-                                      : "border-gray-300",
-                                    active ? "ring-2 ring-indigo-500" : "",
-                                    "relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none"
-                                  )
-                                }
-                              >
-                                {({ checked, active }) => (
-                                  <>
-                                    {checked ? (
-                                      <CheckCircleIcon
-                                        className="h-6 w-6 text-indigo-600"
-                                        aria-hidden="true"
-                                      />
-                                    ) : (
-                                      <CircleStackIcon
-                                        className="h-6 w-6 text-gray-300"
-                                        aria-hidden="true"
-                                      />
-                                    )}
-
-                                    <span className="ml-4 flex flex-1">
-                                      <span className="flex flex-col">
-                                        <RadioGroup.Label
-                                          as="span"
-                                          className="block text-sm font-medium text-gray-900"
-                                        >
-                                          {deliveryMethod.alias}
-                                        </RadioGroup.Label>
-
-                                        <div className="flex flex-1 mt-1">
-                                          <RadioGroup.Description
-                                            as="span"
-                                            className="text-sm font-medium text-gray-900"
-                                          >
-                                            ${deliveryMethod.amount}
-                                          </RadioGroup.Description>
-
-                                          <RadioGroup.Description
-                                            as="span"
-                                            className="ml-2 text-sm text-gray-500"
-                                          >
-                                            {deliveryMethod.serviceName}
-                                          </RadioGroup.Description>
-                                        </div>
-                                      </span>
-                                    </span>
-
-                                    <span
-                                      className={classNames(
-                                        active ? "border" : "border-2",
-                                        checked
-                                          ? "border-indigo-500"
-                                          : "border-transparent",
-                                        "pointer-events-none absolute -inset-px rounded-lg"
-                                      )}
-                                      aria-hidden="true"
-                                    />
-                                  </>
-                                )}
-                              </RadioGroup.Option>
-                            )
-                          )}
-                      </div>
-                    </RadioGroup>
-                  </div>
-                )}
+              {/* SHIPPING QUOTES */}
+              <ShippingQuotesList
+                store={store}
+                handleDeliveryMethodChange={handleDeliveryMethodChange}
+              />
             </li>
           ))}
         </ul>
@@ -433,4 +286,163 @@ export default function OrderSummary({
       </div>
     </aside>
   );
-}
+});
+
+//
+type ShippingQuotesList = {
+  store: ShoppingCartShop;
+  handleDeliveryMethodChange: (storeId: number, deliveryMethod: ShippingMethod) => void;
+};
+const ShippingQuotesList = ({
+  store,
+  handleDeliveryMethodChange,
+}: ShippingQuotesList) => {
+  // store selectedShippingMethod in local state
+  const [selectedShippingMethod, setSelectedShippingMethod] = useState(
+    store?.selectedShippingMethod
+  );
+
+  // Handle the delivery method change
+  const onShippingMethodChange = (shippingMethodStringId: string) => {
+    // The format of the shippingMethodStringId is `shippingMethod-${storeId}-${courierId}-${serviceType}`;
+    // Retrieve the storeId, courierId and serviceType from the shippingMethodStringId
+    const [fieldName, storeIdString, courierId, serviceType] =
+      shippingMethodStringId.split("-");
+    const storeId = parseInt(storeIdString);
+
+    // Find the selected delivery method whithin the shop
+    const deliveryMethod = store?.shippingQuote?.deliveries.find(
+      (delivery: ShippingMethod) =>
+        delivery.courierId == courierId && delivery.serviceType == serviceType
+    );
+
+    // Update the local state
+    setSelectedShippingMethod(deliveryMethod || null);
+
+    // Call the parent handler
+    deliveryMethod && handleDeliveryMethodChange(storeId, deliveryMethod);
+  };
+
+  // Render component
+  return (
+    <>
+      {store.shippingQuote?.deliveries &&
+        store.shippingQuote?.deliveries?.length > 0 && (
+          <div className="mt-5 border-gray-200 ">
+            <input
+              type="hidden"
+              name={`stores[${store.id}][selectedShippingMethod][courier]`}
+              defaultValue={`${selectedShippingMethod?.courier}`}
+            />
+            <input
+              type="hidden"
+              name={`stores[${store.id}][selectedShippingMethod][courierId]`}
+              defaultValue={`${selectedShippingMethod?.courierId}`}
+            />
+            <input
+              type="hidden"
+              name={`stores[${store.id}][selectedShippingMethod][serviceType]`}
+              defaultValue={`${selectedShippingMethod?.serviceType}`}
+            />
+            <input
+              type="hidden"
+              name={`stores[${store.id}][selectedShippingMethod][serviceName]`}
+              defaultValue={`${selectedShippingMethod?.serviceName}`}
+            />
+            <input
+              type="hidden"
+              name={`stores[${store.id}][selectedShippingMethod][deliveryTimestamp]`}
+              defaultValue={`${selectedShippingMethod?.deliveryTimestamp}`}
+            />
+            <input
+              type="hidden"
+              name={`stores[${store.id}][selectedShippingMethod][amount]`}
+              defaultValue={`${selectedShippingMethod?.amount}`}
+            />
+
+            <RadioGroup
+              defaultValue={`shippingMethod-${store.id}-${selectedShippingMethod?.courierId}-${selectedShippingMethod?.serviceType}`}
+              onChange={onShippingMethodChange}
+            >
+              <RadioGroup.Label className="text-md text-gray-900">
+                Método de envío
+              </RadioGroup.Label>
+
+              <div className="mt-4 grid grid-cols-1 gap-y-2 sm:grid-cols-2 lg:grid-cols-1 sm:gap-x-4">
+                {store.shippingQuote?.deliveries &&
+                  store.shippingQuote?.deliveries.map(
+                    (deliveryMethod: ShippingMethod) => (
+                      <RadioGroup.Option
+                        key={`shippingMethod-${store.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
+                        value={`shippingMethod-${store.id}-${deliveryMethod?.courierId}-${deliveryMethod?.serviceType}`}
+                        className={({ checked, active }) =>
+                          classNames(
+                            checked ? "border-transparent" : "border-gray-300",
+                            active ? "ring-2 ring-indigo-500" : "",
+                            "relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none"
+                          )
+                        }
+                      >
+                        {({ checked, active }) => (
+                          <>
+                            {checked ? (
+                              <CheckCircleIcon
+                                className="h-6 w-6 text-indigo-600"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <CircleStackIcon
+                                className="h-6 w-6 text-gray-300"
+                                aria-hidden="true"
+                              />
+                            )}
+
+                            <span className="ml-4 flex flex-1">
+                              <span className="flex flex-col">
+                                <RadioGroup.Label
+                                  as="span"
+                                  className="block text-sm font-medium text-gray-900"
+                                >
+                                  {deliveryMethod.alias}
+                                </RadioGroup.Label>
+
+                                <div className="flex flex-1 mt-1">
+                                  <RadioGroup.Description
+                                    as="span"
+                                    className="text-sm font-medium text-gray-900"
+                                  >
+                                    ${deliveryMethod.amount}
+                                  </RadioGroup.Description>
+
+                                  <RadioGroup.Description
+                                    as="span"
+                                    className="ml-2 text-sm text-gray-500"
+                                  >
+                                    {deliveryMethod.serviceName}
+                                  </RadioGroup.Description>
+                                </div>
+                              </span>
+                            </span>
+
+                            <span
+                              className={classNames(
+                                active ? "border" : "border-2",
+                                checked
+                                  ? "border-indigo-500"
+                                  : "border-transparent",
+                                "pointer-events-none absolute -inset-px rounded-lg"
+                              )}
+                              aria-hidden="true"
+                            />
+                          </>
+                        )}
+                      </RadioGroup.Option>
+                    )
+                  )}
+              </div>
+            </RadioGroup>
+          </div>
+        )}
+    </>
+  );
+};
