@@ -22,7 +22,6 @@ import Fetcher from "~/utils/fetcher";
 import OrderSummary from "./OrderSummary";
 import ShippingForm from "./ShippingForm";
 import ReviewForm from "./ReviewForm";
-import ThankYou from "./ThankYou";
 import ShoppingCart from "~/utils/ShoppingCart";
 import DialogOverlay from "~/components/DialogOverlay";
 import { useFetcher } from "@remix-run/react";
@@ -321,8 +320,7 @@ export default function CheckoutPage() {
 
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
-  ShoppingCartInstance.setCart(shoppingCart, false);
-  console.log("LOS SHIPPING QUOTES SON: ", shippingQuotes)
+  ShoppingCartInstance.setCart(shoppingCart);
   ShoppingCartInstance.setShippingQuotes(shippingQuotes?.deliveries || []);
 
   // Determine corresponding UI form
