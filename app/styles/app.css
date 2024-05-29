@@ -2481,8 +2481,8 @@ select {
   --tw-bg-opacity: 0.9;
 }
 
-.bg-\[url\(\'https\:\/\/sfo3\.digitaloceanspaces\.com\/com\.mexicolimited\/production-bucket\/managed-content\/desktop-content\/pattern\.png\'\)\] {
-  background-image: url('https://sfo3.digitaloceanspaces.com/com.mexicolimited/production-bucket/managed-content/desktop-content/pattern.png');
+.bg-\[url\(\'https\:\/\/buckets\.mexicolimited\.com\/production-bucket\/managed-content\/desktop-content\/pattern\.png\'\)\] {
+  background-image: url('https://buckets.mexicolimited.com/production-bucket/managed-content/desktop-content/pattern.png');
 }
 
 .bg-gradient-to-b {
