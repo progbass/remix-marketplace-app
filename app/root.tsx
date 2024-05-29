@@ -102,8 +102,6 @@ export const loader: LoaderFunction = async ({
   });
 
   // Return the loader data including headers
-  console.log("SSR CART RESULTS shoppingCartItems", shoppingCartItems);
-  console.log("SSR CART RESULTS USER ", user);
   return json(
     {
       user: user,
@@ -131,9 +129,6 @@ export default function App() {
     shoppingCartItems,
     marketplaceCategories,
   } = useLoaderData<typeof loader>();
-
-  console.log("ROOT COMPONENT shoppingCartItems", shoppingCartItems);
-  console.log(user);
 
   // Configure the fetcher
   const fetcher = new Fetcher(user ? user.token : null);
