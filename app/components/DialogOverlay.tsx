@@ -12,6 +12,7 @@ interface DialogOverlayProps {
     children?: React.ReactNode;
     labelActionButton?: string;
     labelCancelButton?: string;
+    closeOnOverlayClick?: boolean;
 }
 
 export default function DialogOverlay ({ 
@@ -20,6 +21,7 @@ export default function DialogOverlay ({
   children = '' ,
   labelActionButton = 'Aceptar',
   labelCancelButton = 'Cancelar',
+  closeOnOverlayClick = true
 }: DialogOverlayProps) {
   const [open, setOpen] = useState(true)
   const WIDTH_MODE = {
@@ -57,7 +59,7 @@ export default function DialogOverlay ({
 
   return (
     <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-50" initialFocus={cancelButtonRef} onClose={closeDialog}>
+      <Dialog as="div" className="relative z-50" initialFocus={cancelButtonRef} onClose={closeOnOverlayClick ? closeDialog : () => {}}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
