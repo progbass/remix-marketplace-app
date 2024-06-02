@@ -26,9 +26,10 @@ import ShoppingCart from "~/utils/ShoppingCart";
 import DialogOverlay from "~/components/DialogOverlay";
 import { useFetcher } from "@remix-run/react";
 import { getSession } from "~/services/session.server";
+import Spinner from "~/components/Spinner";
 
 //
-const STRIPE_REDIRECT_URL = "http://localhost:3000/purchase";
+const STRIPE_REDIRECT_URL = "";
 
 //
 const checkoutStepsModel = [
@@ -82,7 +83,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             status: "current",
           };
         }
-        if(step.slug === "review"){
+        if (step.slug === "review") {
           return {
             ...step,
             status: "upcoming",
@@ -198,8 +199,43 @@ export let action = async ({ request }: ActionFunctionArgs) => {
   const fetcher = new Fetcher(session.get("token"), request);
 
   // Handle the form actions
-  const cartStep = formData.get("step");
-  switch (cartStep) {
+  const formAction = formData.get("action");
+  let cart;
+  switch (formAction) {
+    case "updateProduct":
+      // Add/Update product to the shopping cart
+      cart = await fetcher
+        .fetch(`${getEnv().API_URL}/cart/add`, {
+          method: "POST",
+          body: formData,
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+
+      //
+      return {
+        cart,
+      };
+      break;
+
+    case "removeProduct":
+      // Remove the product
+      cart = await fetcher
+        .fetch(`${getEnv().API_URL}/cart/remove`, {
+          method: "DELETE",
+          body: formData,
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+
+      //
+      return {
+        cart,
+      };
+      break;
+
     case "shipping":
       // Update shipping details in the cart
       const updatedCart = await fetcher
@@ -239,7 +275,7 @@ export let action = async ({ request }: ActionFunctionArgs) => {
       // Return data
       updatedShoppingCart.cart.map((item) => {
         console.log("Updated shipping method ", item.selectedShippingMethod);
-      })
+      });
       return {
         cart: updatedShoppingCart,
       };
@@ -263,7 +299,7 @@ export let action = async ({ request }: ActionFunctionArgs) => {
       console.log("ORDER PAYMENT REFERENCE ", orderPayment);
 
       // Return data
-      // return redirect("/checkout/review");
+      // return redirect("/checkout/purchase_confirmation");
       return {
         step: "purchase_confirmation",
         errors,
@@ -283,7 +319,7 @@ export let action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-//
+// MAIN LAYOUT
 export default function CheckoutPage() {
   const formReference = useRef(null);
 
@@ -301,7 +337,6 @@ export default function CheckoutPage() {
   const elements = useElements();
 
   const [message, setMessage] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const actionData = useActionData();
   const [errorModalDisplay, setErrorModalDisplay] = useState(
@@ -318,44 +353,74 @@ export default function CheckoutPage() {
     }
   }, [actionData?.errors.payment_error]);
 
+  // Display a progress bar based on the current step and action data state
+  const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    if (checkoutForm.state === "loading") {
+      setIsLoading(true);
+    } else {
+      setIsLoading(false);
+    }
+  }, [checkoutForm.state]);
+
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
   ShoppingCartInstance.setCart(shoppingCart);
   ShoppingCartInstance.setShippingQuotes(shippingQuotes?.deliveries || []);
 
-  // Determine corresponding UI form
-  let CartStepForm = ShippingForm;
-  switch (cartStep) {
-    case "shipping":
-      CartStepForm = ShippingForm;
-      break;
-    case "review":
-      CartStepForm = ReviewForm;
-      break;
-    default:
-  }
-
   // Handle product quantity changes
-  const handleProductQuantityChange = (
+  const handleProductQuantityChange = async (
     product: ShoppingCartProduct,
-    event: React.ChangeEvent<HTMLSelectElement>
+    event: React.FormEvent<HTMLFormElement>
   ) => {
-    const quantity = event.target.value;
-    ShoppingCartInstance.updateProductQuantity(product, parseInt(quantity));
+    const item = {
+      action: "updateProduct",
+      ...product,
+      quantity: event.currentTarget.value,
+    };
+
+    // Submit the form
+    var form_data = new FormData();
+    for (var key in item) {
+      // Exclude empty values
+      if (item[key]) {
+        console.log(key, item[key]);
+        form_data.append(key, item[key]);
+      }
+    }
+
+    // Submit form
+    checkoutForm.submit(form_data, { method: "post" });
+
+    //
+    return;
   };
+
+  // Handle remove product
   const handleProductRemove = (product: ShoppingCartProduct) => {
-    ShoppingCartInstance.removeProductFromCart(product);
+    //
+    checkoutForm.submit(
+      {
+        ...product,
+        action: "removeProduct",
+      },
+      { method: "post" }
+    );
+
+    //
+    return;
   };
 
   // Handle form submission
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    
     // Transform into FormData
     const formData = new FormData(event.currentTarget);
-    switch (formData.get("step")) {
+    switch (formData.get("action")) {
       case "shipping":
         try {
           checkoutForm.submit(formData, { method: "POST" });
-          return;
+          // return;
           // Catch errors
         } catch (e) {
           console.log(e);
@@ -365,10 +430,14 @@ export default function CheckoutPage() {
         console.log("Shipping form submitted");
         return;
 
+      //
       case "review":
+        event.preventDefault();
+        
         try {
-          checkoutForm.submit(formData, { method: "POST" });
-          return;
+          handlePaymentConfirmation();
+          // checkoutForm.submit(formData, { method: "POST" });
+          // return;
           // Catch errors
         } catch (e) {
           console.log(e);
@@ -376,33 +445,34 @@ export default function CheckoutPage() {
 
         // Exit handler
         console.log("Review form submitted");
-        break;
+        return;
+      
+      //
       default:
+        return;
     }
   }
   useEffect(() => {
-    console.log("checkoutForm ", checkoutForm);
-    if (
-      checkoutForm.state === "idle" &&
-      checkoutForm.data?.step == "purchase_confirmation" &&
-      checkoutForm.data?.purchase.type == "success"
-    ) {
-      console.log("passing the confirmation  ");
-
-      // Confirm stripe payment
-      handlePaymentConfirmation(checkoutForm.data?.purchase);
-    }
+    // if (
+    //   checkoutForm.state === "idle" &&
+    //   checkoutForm.data?.step == "purchase_confirmation" &&
+    //   checkoutForm.data?.purchase.type == "success"
+    // ) {
+    //   // Confirm stripe payment
+    //   handlePaymentConfirmation(checkoutForm.data?.purchase);
+    // }
   }, [checkoutForm]);
 
   // Confirm payment
-  const handlePaymentConfirmation = async (purchase) => {
+  const handlePaymentConfirmation = async () => {
     setIsLoading(true);
 
+    console.log("__CONFIRMING_PAYMENT__  ");
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         // Make sure to change this to your payment completion page
-        return_url: `${STRIPE_REDIRECT_URL}/${purchase.id}/success`,
+        return_url: `${getEnv().MARKETPLACE_URL}/purchase/success`,
       },
     });
 
@@ -423,9 +493,20 @@ export default function CheckoutPage() {
   // Determine form completion
   const [isFormCompleted, setIsFormCompleted] = useState(false);
   const handleFormComplete = (formCompleted: boolean) => {
-    console.log("Form complete ", formCompleted);
     setIsFormCompleted(formCompleted);
   };
+
+  // Determine corresponding UI form
+  let CartStepForm = ShippingForm;
+  switch (cartStep) {
+    case "shipping":
+      CartStepForm = ShippingForm;
+      break;
+    case "review":
+      CartStepForm = ReviewForm;
+      break;
+    default:
+  }
 
   // Render component
   return (
@@ -440,13 +521,17 @@ export default function CheckoutPage() {
                     <Link
                       to={step.href}
                       aria-current="page"
-                      className={step.status === "current" ? "text-secondary-600" : "text-secondary-500"}
+                      className={
+                        step.status === "current"
+                          ? "text-secondary-600"
+                          : "text-gray-400 hover:text-secondary-600"
+                      }
                     >
                       {step.name}
                     </Link>
-                  ) : 
-                    (step.name)
-                  }
+                  ) : (
+                    step.name
+                  )}
 
                   {stepIdx !== checkoutSteps.length - 1 ? (
                     <ChevronRightIcon
@@ -471,7 +556,7 @@ export default function CheckoutPage() {
           onSubmit={handleSubmit}
           className="relative mx-auto grid max-w-7xl grid-cols-1 gap-x-16 lg:grid-cols-2 px-8 xl:gap-x-48"
         >
-          <input type="hidden" name="step" defaultValue={cartStep} />
+          <input type="hidden" name="action" defaultValue={cartStep} />
           <input
             type="hidden"
             name="order[payment_intent_id]"
@@ -498,6 +583,29 @@ export default function CheckoutPage() {
         </checkoutForm.Form>
       </div>
 
+      {/* LOADING MODAL */}
+      {isLoading && (
+        <>
+          <DialogOverlay
+            closeOnOverlayClick={false}
+            title="Cargando..."
+            message={""}
+            display={true}
+          >
+            <div className="flex items-center flex-col">
+              <Spinner />
+              <div className="mt-4">
+                {cartStep === "shipping" ? (
+                  <p>Obteniendo información de envío...</p>
+                ) : (
+                  <p>Procesando pago...</p>
+                )}
+              </div>
+            </div>
+          </DialogOverlay>
+        </>
+      )}
+
       {/* Error Modal */}
       {errorModalDisplay && (
         <DialogOverlay
@@ -509,3 +617,6 @@ export default function CheckoutPage() {
     </>
   );
 }
+
+
+
