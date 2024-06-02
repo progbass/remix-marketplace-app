@@ -42,13 +42,16 @@ export default memo(function ({
   const storesList = localShoppingCart.getCart().cart;
 
   // Handle the delivery method change
-  const handleDeliveryMethodChange = (storeId: number, deliveryMethod: ShippingMethod) => {
+  const handleDeliveryMethodChange = (
+    storeId: number,
+    deliveryMethod: ShippingMethod
+  ) => {
     // Save the selected delivery method to the server
     // The form has a delay to allow the DOM to update the hidden inputs
     setTimeout(() => {
       // Submit the form asynchronously
       const formData = new FormData(checkoutFormRef.current);
-      formData.set("step", "setShippingMethod"); // Set the action handler
+      formData.set("action", "setShippingMethod"); // Set the action handler
       checkoutForm.submit(formData, {
         method: "POST",
       });
@@ -143,11 +146,16 @@ export default memo(function ({
                 <div key={product.id} className="mt-5 relative">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-12 rounded-md"
-                      />
+                      <Link
+                        to={`/product/${product.id}`}
+                        className="font-medium text-gray-700 hover:text-gray-800"
+                      >
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="h-14 w-14 rounded-md object-cover object-center"
+                        />
+                      </Link>
                     </div>
 
                     <div className="ml-6 flex flex-1 flex-col">
@@ -161,14 +169,30 @@ export default memo(function ({
                               {product.name}
                             </Link>
                           </h4>
-                          <p className="mt-1 text-sm text-gray-500">
-                            {"product.size"}
-                          </p>
+
+                          {/* PRODUCT VARIATIONS */}
+                          {product.modelo !== null && (
+                            <div className="mt-1 flex text-sm">
+                              <p className="text-gray-500">
+                                <span>Talla/modelo: </span>
+
+                                <span>
+                                  {product.namemodel_size || ""}
+                                  {product.namemodel_size &&
+                                  product.namemodel_model
+                                    ? `${product.namemodel_size} / ${product.namemodel_model}`
+                                    : ""}
+                                  {product.namemodel || ""}
+                                </span>
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         <div className="ml-4 flow-root flex-shrink-0">
                           <button
                             type="button"
+                            onClick={() => onProductRemove(product)}
                             className="-m-2.5 flex items-center justify-center bg-white p-2.5 text-gray-400 hover:text-gray-500"
                           >
                             <span className="sr-only">Remove</span>
@@ -177,10 +201,12 @@ export default memo(function ({
                         </div>
                       </div>
 
-                      <div className="flex flex-1 items-end justify-between pt-2">
-                        <p className="mt-1 text-sm font-medium text-gray-900">
-                          {formatPrice(product.price)}
-                        </p>
+                      <div className="flex flex-1 justify-between pt-2">
+                        <div>
+                          <p className="mt-1 text-sm font-medium text-gray-900">
+                            {formatPrice(product.price * product.quantity)}
+                          </p>
+                        </div>
 
                         <div className="ml-4">
                           <label
@@ -206,6 +232,15 @@ export default memo(function ({
                                 </option>
                               ))}
                           </select>
+
+                          {/* UNIT PRICE */}
+                          {product.quantity > 1 ? (
+                            <p className="pl-1 mt-1 text-xs font-medium text-gray-900">
+                              <span className="text-gray-500 font-normal">
+                                {formatPrice(product.price)} c/u
+                              </span>
+                            </p>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -235,11 +270,11 @@ export default memo(function ({
             />
           </div>
 
-          {localShoppingCart.getShippingCost() > 1 && (
+          {cartStep === "review" && (
             <div className="flex items-center justify-between">
               <dt className="text-sm">
                 Costo de envío{" "}
-                {`(${localShoppingCart.getCart().cart.length} envíos)`}
+                {`(${localShoppingCart.getCart().cart.length} envío${localShoppingCart.getCart().cart.length > 1 ? "s" : ""})`}
               </dt>
               <dd className="text-sm font-medium text-gray-900">
                 {formatPrice(localShoppingCart.getShippingCost())}
@@ -259,12 +294,18 @@ export default memo(function ({
           <div className="flex items-center justify-between border-t border-gray-200 pt-6">
             <dt className="text-base font-medium">Total</dt>
             <dd className="text-base font-medium text-gray-900">
-              {formatPrice(localShoppingCart.getTotal())}
+              {cartStep === "review"
+                ? formatPrice(localShoppingCart.getTotal())
+                : formatPrice(localShoppingCart.getSubtotal())}
             </dd>
             <input
               type="hidden"
               name="order[total]"
-              value={localShoppingCart.getTotal()}
+              value={
+                cartStep === "review"
+                  ? localShoppingCart.getTotal()
+                  : formatPrice(localShoppingCart.getSubtotal())
+              }
             />
           </div>
         </dl>
@@ -291,7 +332,10 @@ export default memo(function ({
 //
 type ShippingQuotesList = {
   store: ShoppingCartShop;
-  handleDeliveryMethodChange: (storeId: number, deliveryMethod: ShippingMethod) => void;
+  handleDeliveryMethodChange: (
+    storeId: number,
+    deliveryMethod: ShippingMethod
+  ) => void;
 };
 const ShippingQuotesList = ({
   store,
