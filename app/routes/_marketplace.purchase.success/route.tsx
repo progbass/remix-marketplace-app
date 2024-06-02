@@ -11,48 +11,96 @@ import { formatDate } from "~/utils/dateUtils";
 
 import getEnv from "get-env";
 import { getSession } from "~/services/session.server";
+import ShoppingCart from "~/utils/ShoppingCart";
+import { formatPrice } from "~/utils/formatPrice";
+
+function convertToFormData(
+  object: Object,
+  form?: FormData,
+  namespace?: string
+): FormData {
+  const formData = form || new FormData();
+  for (let property in object) {
+    if (!object.hasOwnProperty(property) || !object[property]) {
+      continue;
+    }
+    const formKey = namespace ? `${namespace}[${property}]` : property;
+    if (object[property] instanceof Date) {
+      formData.append(formKey, object[property].toISOString());
+    } else if (typeof object[property] === "object") {
+      // && !(object[property] instanceof File)) {
+      convertToFormData(object[property], formData, formKey);
+    } else {
+      formData.append(formKey, object[property]);
+    }
+  }
+  return formData;
+}
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const orderId = params.orderId;
   let session = await getSession(request.headers.get("cookie"));
-  
 
   // Create custom fetcher
   const fetcher = new Fetcher(session.get("token"), request);
 
   // Retrieve payment intent status
-  const stripe2 = new Stripe(getEnv().STRIPE_SECRET_KEY);
   const url = new URL(request.url);
-  const paymentIntentId:string | null = url.searchParams.get("payment_intent");
-  const paymentIntentClientSecret:string | null = url.searchParams.get("payment_intent_client_secret")
-  
+  const paymentIntentId: string | null = url.searchParams.get("payment_intent");
+  const paymentIntentClientSecret: string | null = url.searchParams.get(
+    "payment_intent_client_secret"
+  );
+
   // Redirect if payment information is not found
   if (!paymentIntentId || !paymentIntentClientSecret) {
     return redirect("/");
   }
 
-  // Retrieve payment intent
-  const paymentIntent = await stripe2.paymentIntents.retrieve(paymentIntentId, {
-    client_secret: paymentIntentClientSecret,
+  // Fetch the shopping cart
+  const shoppingCartResponse = await fetcher.fetch(`${getEnv().API_URL}/cart`, {
+    method: "GET",
   });
-  if (!paymentIntent) {
+  const shoppingCart = new ShoppingCart();
+  shoppingCart.setCart(shoppingCartResponse || {});
+
+  // Redirect if the cart is empty
+  if (!shoppingCart.getCart().cart.length) {
     return redirect("/");
+  }
+
+  // Create order
+  let shoppingOrder = shoppingCart.getOrder();
+  shoppingOrder = {
+    ...shoppingOrder,
+    order: {
+      ...shoppingOrder.order,
+      payment_intent_id: paymentIntentId, // inject related payment intent id
+    },
+  };
+  let orderCreationError = null;
+  const orderPayment = await fetcher
+    .fetch(`${getEnv().API_URL}/stripe/pay`, {
+      method: "POST",
+      body: convertToFormData(shoppingOrder),
+    })
+    .catch((error) => {
+      console.log("error", error);
+      orderCreationError = error;
+    });
+
+  // Redirect ti checkout if we get errors creating the order
+  if (!orderPayment || orderCreationError) {
+    return redirect("/checkout/review");
   }
 
   // Retrieve purchase details
-  const purchaseDetails = await fetcher.
-    fetch(`${getEnv().API_URL}/purchase/${orderId}`, 
-    {
-      method: "GET",
-    }
-  );
-  if (!purchaseDetails) {
-    return redirect("/");
-  }
+  const purchaseDetails = await fetcher
+    .fetch(`${getEnv().API_URL}/purchase/269`, { method: "GET" })
+    .catch((error) => {
+      console.log("error ", error);
+    });
 
-  // Redirect if paymentIntent does not match the order's paymentIntent
-  console.log("paymentIntent.id", paymentIntent.id, purchaseDetails.purchase.payment_intent);
-  if (paymentIntent.id !== purchaseDetails.purchase.payment_intent) {
+  // Redirect if we had problems retrieving the order details
+  if (!purchaseDetails) {
     return redirect("/");
   }
 
@@ -62,13 +110,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     orders: purchaseDetails?.orders || [],
     customer: purchaseDetails?.customer || null,
     labels: purchaseDetails?.labels || null,
-    paymentIntent,
   };
 }
-export async function action(){
-  console.log("asdlkmasdlk asdlkmasd asdlkmasd asdlkm")
-}
-
 
 //
 export default function ThankYou() {
@@ -84,28 +127,28 @@ export default function ThankYou() {
               Gracias por tu compra
             </h1>
             <h2 className="text-xl tracking-tight text-gray-500 sm:text-2xl">
-              Orden #ML-{purchase.id}
+              Orden #ML-{purchase?.id}
             </h2>
           </div>
 
           {/*           
           <a
             href="#"
-            className="hidden text-sm font-medium text-indigo-600 hover:text-indigo-500 sm:block"
+            className="hidden text-sm font-medium text-secondary-600 hover:text-secondary-500 sm:block"
           >
             Ver recibo
             <span aria-hidden="true"> &rarr;</span>
           </a> */}
         </div>
         <p className="text-sm text-gray-600">
-          Fecha de compra {" "}
+          Fecha de compra{" "}
           <time dateTime="2021-03-22" className="font-medium text-gray-900">
-            {formatDate(purchase.created_at)}
+            {formatDate(purchase?.created_at)}
           </time>
         </p>
         {/*<a
           href="#"
-          className="text-sm font-medium text-indigo-600 hover:text-indigo-500 sm:hidden"
+          className="text-sm font-medium text-secondary-600 hover:text-secondary-500 sm:hidden"
         >
           Ver recibo
           <span aria-hidden="true"> &rarr;</span>
@@ -127,28 +170,58 @@ export default function ThankYou() {
               {/* Order Details */}
               <div className="px-4 py-6 sm:px-6 lg:grid lg:grid-cols-12 lg:gap-x-8 lg:p-8">
                 {/* Products list */}
-                <div className="sm:flex lg:col-span-7">
-                  <div className="aspect-h-1 aspect-w-1 w-full flex-shrink-0 overflow-hidden rounded-lg sm:aspect-none sm:h-40 sm:w-40">
+                <div className="flex lg:col-span-7">
+                  <div className="flex-shrink-0 overflow-hidden rounded-sm h-14 w-14">
                     <img
                       src={order.static_products[0]?.image}
                       alt={order.static_products[0]?.name}
-                      className="h-full w-full object-cover object-center sm:h-full sm:w-full"
+                      className="h-full w-full object-cover object-center"
                     />
                   </div>
 
-                  <ul className="mt-6 sm:ml-6 sm:mt-0 list-outside">
+                  <ul className="mt-0 ml-6 list-outside">
                     {order.static_products.map((product) => (
-                      <li key={product.id} >
+                      <li key={product.id}>
                         <div className=" ">
                           <h3 className="text-base font-medium text-gray-900">
                             {product.name}
                           </h3>
-                          <p className="mt-1 text-sm font-medium text-gray-900">
-                            ${product.price}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {'product.description'}
-                          </p>
+
+                          {/* PRODUCT VARIATIONS */}
+                          {product?.modelo && (
+                            <div className="mt-1 flex text-sm">
+                              <p className="text-gray-500">
+                                <span>Talla/modelo: </span>
+
+                                <span>
+                                  {product.namemodel_size || ""}
+                                  {product.namemodel_size &&
+                                  product.namemodel_model
+                                    ? `${product.namemodel_size} / ${product.namemodel_model}`
+                                    : ""}
+                                  {product.namemodel || ""}
+                                </span>
+                              </p>
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="mt-1 text-sm font-medium text-gray-900">
+                              {formatPrice(product.price * product.quantity)}
+                            </p>
+
+                            {/* UNIT PRICE */}
+                            {product.quantity > 1 ? (
+                              <p className="pl-1 mt-1 text-sm text-gray-500 font-normal">
+                                <span className="text-gray-500">
+                                  (x{product.quantity})
+                                </span>{" "}
+                                <span className="">
+                                  {formatPrice(product.price)} c/u
+                                </span>
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </li>
                     ))}
@@ -163,7 +236,7 @@ export default function ThankYou() {
                         Dirección de entrega
                       </dt>
                       <dd className="mt-3 text-gray-500">
-                        <span className="block">{`${customer.street} ${customer.num_ext}${customer?.num_int ? ', '+customer?.num_int : ''} `}</span>
+                        <span className="block">{`${customer.street} ${customer.num_ext}${customer?.num_int ? ", " + customer?.num_int : ""} `}</span>
                         <span className="block">{`${customer.neighborhood}, ${customer.zipcode}. ${customer.town.name}, ${customer.state.name}.`}</span>
                       </dd>
                     </div>
@@ -176,7 +249,7 @@ export default function ThankYou() {
                         <p>{customer.phone}</p>
                         {/* <button
                           type="button"
-                          className="font-medium text-indigo-600 hover:text-indigo-500"
+                          className="font-medium text-secondary-600 hover:text-secondary-500"
                         >
                           Edit
                         </button> */}
@@ -190,7 +263,7 @@ export default function ThankYou() {
               <div className="border-t border-gray-200 px-4 py-6 sm:px-6 lg:p-8">
                 <h4 className="sr-only">Status</h4>
                 <p className="text-sm font-medium text-gray-900">
-                  Fecha aproximada de entrega {" "}
+                  Fecha aproximada de entrega{" "}
                   <time dateTime={order.expected_shipping_date}>
                     {formatDate(order.expected_shipping_date)}
                   </time>
@@ -198,17 +271,17 @@ export default function ThankYou() {
                 <div className="mt-6" aria-hidden="true">
                   <div className="overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className="h-2 rounded-full bg-indigo-600"
+                      className="h-2 rounded-full bg-secondary-600"
                       style={{
                         width: `calc((${0} * 2 + 1) / 8 * 100%)`,
                       }}
                     />
                   </div>
                   <div className="mt-6 hidden grid-cols-4 text-sm font-medium text-gray-600 sm:grid">
-                    <div className="text-indigo-600">Order creada</div>
+                    <div className="text-secondary-600">Order creada</div>
                     <div
                       className={classNames(
-                        0 > 0 ? "text-indigo-600" : "",
+                        0 > 0 ? "text-secondary-600" : "",
                         "text-center"
                       )}
                     >
@@ -216,7 +289,7 @@ export default function ThankYou() {
                     </div>
                     <div
                       className={classNames(
-                        0 > 1 ? "text-indigo-600" : "",
+                        0 > 1 ? "text-secondary-600" : "",
                         "text-center"
                       )}
                     >
@@ -224,7 +297,7 @@ export default function ThankYou() {
                     </div>
                     <div
                       className={classNames(
-                        0 > 2 ? "text-indigo-600" : "",
+                        0 > 2 ? "text-secondary-600" : "",
                         "text-right"
                       )}
                     >
@@ -290,14 +363,17 @@ export default function ThankYou() {
           <dl className="mt-8 divide-y divide-gray-200 text-sm lg:col-span-5 lg:mt-0">
             <div className="flex items-center justify-between pb-4">
               <dt className="text-gray-600">Subtotal</dt>
-              <dd className="font-medium text-gray-900">{purchase.subtotal}</dd>
+              <dd className="font-medium text-gray-900">
+                {purchase?.subtotal}
+              </dd>
             </div>
             <div className="flex items-center justify-between py-4">
               <dt className="text-gray-600">
-                Costo de envío {" "}
-                {`(${orders.length} envíos)`}
+                Costo de envío {`(${orders.length} envíos)`}
               </dt>
-              <dd className="font-medium text-gray-900">{purchase.shippingCost}</dd>
+              <dd className="font-medium text-gray-900">
+                {purchase?.shippingCost}
+              </dd>
             </div>
             {/* <div className="flex items-center justify-between py-4">
               <dt className="text-gray-600">Tax</dt>
@@ -305,7 +381,7 @@ export default function ThankYou() {
             </div> */}
             <div className="flex items-center justify-between pt-4">
               <dt className="font-medium text-gray-900">Total</dt>
-              <dd className="font-medium text-indigo-600">{purchase.total}</dd>
+              <dd className="font-medium text-secondary-600">{purchase?.total}</dd>
             </div>
           </dl>
         </div>
@@ -317,12 +393,12 @@ export default function ThankYou() {
           <h3 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-xl">
             Continúa explorando México Limited
           </h3>
-          
+
           <Link
             to="/"
-            className="mt-4 rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+            className="mt-4 rounded-md border border-transparent bg-primary-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-50"
           >
-            Regresara la tienda
+            Regresar a la tienda
           </Link>
         </div>
       </section>
