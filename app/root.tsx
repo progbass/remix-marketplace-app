@@ -114,7 +114,7 @@ export const loader: LoaderFunction = async ({
       serverUrl,
       shoppingCartItems,
       marketplaceCategories: marketplaceCategories || [],
-    },
+    }
     // { ...(headers ? { headers } : {}) }
   );
 };
@@ -148,7 +148,10 @@ export default function App() {
           Desde artesanías tradicionales hasta productos innovadores, cada compra en México Limited es un voto a favor del crecimiento de la economía local y el apoyo al talento mexicano."
         />
         <meta name="author" content="México Limited" />
-        <meta name="keywords" content="emprendimiento México creadores artesanías" />
+        <meta
+          name="keywords"
+          content="emprendimiento México creadores artesanías"
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="data:image/x-icon;base64,AA" />
         <Meta />
@@ -209,6 +212,20 @@ export function ErrorBoundary() {
 }
 
 // Instant Search Provider
+// Returns a slug from the category name.
+// Spaces are replaced by "+" to make
+// the URL easier to read and other
+// characters are encoded.
+function getCategorySlug(name) {
+  return name.split(" ").map(encodeURIComponent).join("+");
+}
+
+// Returns a name from the category slug.
+// The "+" are replaced by spaces and other
+// characters are decoded.
+function getCategoryName(slug) {
+  return slug.split("+").map(decodeURIComponent).join(" ");
+}
 type PageProps = {
   serverState?: InstantSearchServerState;
   serverUrl: string;
@@ -237,8 +254,10 @@ function InstantSearchProvider({
               // current search params
               const indexState = routeState[algoliaProductsIndex] || {};
               const { origin, pathname, hash, search } = location;
+
               // grab current query string and convert to object
               const queryParameters = qsModule.parse(search.slice(1)) || {};
+              let queryString = qsModule.stringify(queryParameters);
 
               // if there is an active search
               if (Object.keys(indexState).length) {
@@ -263,48 +282,56 @@ function InstantSearchProvider({
                   routeState.categories.map(encodeURIComponent);
               }
 
-              let queryString = qsModule.stringify(queryParameters);
-
+              // convert the query params back to a string
+              queryString = qsModule.stringify(queryParameters);
               if (queryString.length) {
                 queryString = `?${queryString}`;
               }
 
+              // Your existing code for parsing and modifying query parameters
+              queryString = qsModule.stringify(queryParameters);
+              if (queryString.length) {
+                queryString = `?${queryString}`;
+              }
+
+              // Redirect to the search page if there are search parameters
               let targetPathname = pathname;
-              if (pathname != "/search") {
+              if (Object.keys(indexState).length) {
                 targetPathname = "/search";
               }
 
+              // return the new URL
               return `${origin}${targetPathname}${queryString}${hash}`;
             },
           }),
-          stateMapping: {
-            stateToRoute(uiState) {
-              const indexUiState = uiState[algoliaProductsIndex];
-              return {
-                q: indexUiState.query,
-                categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
-                brand: indexUiState.hierarchicalMenu?.["brand.brand"],
-                page: indexUiState.page,
-                price: indexUiState.numericMenu?.["price"],
-              };
-            },
-            routeToState(routeState) {
-              return {
-                [algoliaProductsIndex]: {
-                  query: routeState.q,
-                  hierarchicalMenu: {
-                    ["categories.lvl0"]:
-                      routeState.categories?.map(decodeURIComponent),
-                    ["brand.brand"]: routeState.brand,
-                  },
-                  page: routeState.page,
-                  numericMenu: {
-                    ["price"]: routeState.price,
-                  },
-                },
-              };
-            },
-          },
+          // stateMapping: {
+            // stateToRoute(uiState) {
+            //   const indexUiState = uiState[algoliaProductsIndex];
+            //   return {
+            //     query: indexUiState.query,
+            //     categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
+            //     brand: indexUiState.hierarchicalMenu?.["brand.brand"],
+            //     page: indexUiState.page,
+            //     price: indexUiState.numericMenu?.["price"],
+            //   };
+            // },
+            // routeToState(routeState) {
+            //   return {
+            //     [algoliaProductsIndex]: {
+            //       query: routeState.query,
+            //       hierarchicalMenu: {
+            //         ["categories.lvl0"]:
+            //           routeState.categories?.map(decodeURIComponent),
+            //         ["brand.brand"]: routeState.brand,
+            //       },
+            //       page: routeState.page,
+            //       numericMenu: {
+            //         ["price"]: routeState.price,
+            //       },
+            //     },
+            //   };
+            // },
+          // },
         }}
       >
         {children}
