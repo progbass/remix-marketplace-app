@@ -1357,6 +1357,10 @@ select {
   height: 3rem;
 }
 
+.h-14 {
+  height: 3.5rem;
+}
+
 .h-16 {
   height: 4rem;
 }
@@ -1487,6 +1491,10 @@ select {
 
 .w-12 {
   width: 3rem;
+}
+
+.w-14 {
+  width: 3.5rem;
 }
 
 .w-20 {
@@ -1785,6 +1793,16 @@ select {
 
 .transform-gpu {
   transform: translate3d(var(--tw-translate-x), var(--tw-translate-y), 0) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 
 .cursor-default {
@@ -2208,6 +2226,10 @@ select {
   border-width: 2px;
 }
 
+.border-4 {
+  border-width: 4px;
+}
+
 .border-b {
   border-bottom-width: 1px;
 }
@@ -2228,8 +2250,16 @@ select {
   border-top-width: 1px;
 }
 
+.border-solid {
+  border-style: solid;
+}
+
 .border-dashed {
   border-style: dashed;
+}
+
+.border-\[rgba\(255\2c 255\2c 255\2c 0\.5\)\] {
+  border-color: rgba(255,255,255,0.5);
 }
 
 .border-accent-800 {
@@ -2317,6 +2347,10 @@ select {
 .border-white {
   --tw-border-opacity: 1;
   border-color: rgb(255 255 255 / var(--tw-border-opacity));
+}
+
+.border-r-transparent {
+  border-right-color: transparent;
 }
 
 .border-opacity-10 {
@@ -2831,6 +2865,10 @@ select {
   padding-bottom: 24rem;
 }
 
+.pl-1 {
+  padding-left: 0.25rem;
+}
+
 .pl-16 {
   padding-left: 4rem;
 }
@@ -2969,6 +3007,10 @@ select {
 
 .align-middle {
   vertical-align: middle;
+}
+
+.align-\[-0\.125em\] {
+  vertical-align: -0.125em;
 }
 
 .text-2xl {
@@ -3198,11 +3240,6 @@ select {
 .text-red-900 {
   --tw-text-opacity: 1;
   color: rgb(127 29 29 / var(--tw-text-opacity));
-}
-
-.text-secondary-500 {
-  --tw-text-opacity: 1;
-  color: rgb(99 102 241 / var(--tw-text-opacity));
 }
 
 .text-secondary-600 {
@@ -4083,6 +4120,18 @@ select {
 
 .group:hover .group-hover\:opacity-75 {
   opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .motion-reduce\:animate-\[spin_1\.5s_linear_infinite\] {
+    animation: spin 1.5s linear infinite;
+  }
 }
 
 @media (min-width: 640px) {
