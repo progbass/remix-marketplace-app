@@ -784,7 +784,7 @@ export default function ProductPage() {
           <div className="flex justify-around align-middle mt-5">
             <button
               onClick={() => setModalDisplay(false)}
-              className="text-sm font-medium text-gray-600 hover:text-gray-500"
+              // className="text-sm font-medium text-gray-600 hover:text-gray-500"
               className="flex items-center justify-center rounded-md border bg-transparent px-8 py-3 text-base font-medium text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 focus:ring-offset-gray-50"
             >
               Continuar comprando
