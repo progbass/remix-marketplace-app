@@ -3282,6 +3282,11 @@ select {
   color: rgb(250 204 21 / var(--tw-text-opacity));
 }
 
+.text-gray-800 {
+  --tw-text-opacity: 1;
+  color: rgb(31 41 55 / var(--tw-text-opacity));
+}
+
 .line-through {
   text-decoration-line: line-through;
 }
@@ -3734,6 +3739,10 @@ select {
   }
 }
 
+.first-letter\:items-center::first-letter {
+  align-items: center;
+}
+
 .placeholder\:text-gray-400::-moz-placeholder {
   --tw-text-opacity: 1;
   color: rgb(156 163 175 / var(--tw-text-opacity));
@@ -4070,6 +4079,14 @@ select {
   --tw-ring-offset-color: #fff;
 }
 
+.focus\:ring-offset-secondary-800:focus {
+  --tw-ring-offset-color: #3730a3;
+}
+
+.focus\:ring-offset-secondary-400:focus {
+  --tw-ring-offset-color: #818cf8;
+}
+
 .focus-visible\:outline:focus-visible {
   outline-style: solid;
 }
@@ -4392,6 +4409,11 @@ select {
     width: 100%;
   }
 
+  .sm\:w-fit {
+    width: -moz-fit-content;
+    width: fit-content;
+  }
+
   .sm\:max-w-40 {
     max-width: 10rem;
   }
@@ -4486,6 +4508,10 @@ select {
 
   .sm\:grid-rows-2 {
     grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .sm\:flex-row {
+    flex-direction: row;
   }
 
   .sm\:flex-col {
@@ -4924,6 +4950,10 @@ select {
 
   .md\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .md\:flex-row {
+    flex-direction: row;
   }
 
   .md\:flex-col {
