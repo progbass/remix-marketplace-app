@@ -87,7 +87,7 @@ const MAX_STOCK_ITEMS = 10;
 // Loader function
 export async function loader({ request, params }: LoaderFunctionArgs) {
   // Attempt to get the user from the session
-  const user = await AuthService.getCurrentUser({ request }).catch((err) => {
+  const user = await AuthService.getCurrentUser(request).catch((err) => {
     console.log(err);
     return null;
   });
@@ -182,6 +182,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
 // Main component
 export default function ProductPage() {
+  // Product details
+  const { product, relatedProducts } = useLoaderData<typeof loader>();
+
   // Shopping cart
   const ShoppingCart = useShoppingCart();
 
@@ -200,9 +203,6 @@ export default function ProductPage() {
       setModalDisplay(true);
     }
   }, [addToCartForm]);
-
-  // Product details
-  const { product, relatedProducts } = useLoaderData<typeof loader>();
 
   // Product type
   const PRODUCT_VARIATION_TYPES = {
@@ -241,9 +241,14 @@ export default function ProductPage() {
     : product.gallery;
 
   // Selected product description
-  const selectedProductVariationDescription = selectedProductVariation
+  let selectedProductVariationDescription = selectedProductVariation
     ? selectedProductVariation.description
     : product.short_description;
+  // verify that selectedProductVariationDescription is a string or default it to an empty string
+  selectedProductVariationDescription =
+    typeof selectedProductVariationDescription === "string"
+      ? selectedProductVariationDescription
+      : "";
 
   // Selected product stock
   const selectedProductVariationMaxStock = selectedProductVariation
@@ -446,7 +451,7 @@ export default function ProductPage() {
           )}
 
           {/* PRODUCT SHORT DESCRIPTION */}
-          {product.short_description != null && (
+          {selectedProductVariationDescription && (
             <div className="mt-10">
               <h2 className="text-sm font-medium text-gray-900">Descripción</h2>
               <p className="mt-2 text-gray-500">
@@ -781,18 +786,18 @@ export default function ProductPage() {
               Producto agregado al carrito
             </h3>
           </div>
-          <div className="flex justify-around align-middle mt-5">
+          <div className="flex flex-col-reverse sm:flex-row justify-around align-middle mt-5">
             <button
               onClick={() => setModalDisplay(false)}
               // className="text-sm font-medium text-gray-600 hover:text-gray-500"
-              className="flex items-center justify-center rounded-md border bg-transparent px-8 py-3 text-base font-medium text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 focus:ring-offset-gray-50"
+              className="mt-4 sm:mt-0 w-full flex sm:w-fit items-center justify-center rounded-md border bg-transparent px-8 py-3 text-base font-medium text-gray-600 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 focus:ring-offset-gray-50"
             >
               Continuar comprando
             </button>
 
             <Link
               to="/cart"
-              className="flex items-center justify-center rounded-md border border-transparent bg-primary-600 px-8 py-3 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+              className="w-full flex sm:w-fit items-center justify-center rounded-md border border-transparent bg-primary-600 px-8 py-3 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-50"
             >
               Ir al carrito
             </Link>

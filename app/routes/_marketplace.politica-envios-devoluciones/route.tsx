@@ -118,7 +118,7 @@ const refundPoliciesList = [
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   // Attempt to get the user from the session
-  const user = await AuthService.getCurrentUser({ request }).catch((err) => {
+  const user = await AuthService.getCurrentUser(request).catch((err) => {
     console.log(err);
     return null;
   });

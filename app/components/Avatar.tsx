@@ -13,7 +13,7 @@ function classNames(...classes) {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Attempt to get the user from the session
-  const user = await AuthService.getCurrentUser({ request });
+  const user = await AuthService.getCurrentUser(request);
 
   // Get the shop data
   const shopResponse = await fetcher(
