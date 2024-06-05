@@ -15,6 +15,11 @@ import {
   UserIcon,
 } from "@heroicons/react/24/outline";
 import { MapPinIcon } from "@heroicons/react/20/solid";
+import {
+  UserIcon as UserIconMini,
+  BuildingStorefrontIcon as BuildingStorefrontIconMini,
+  ArrowLeftEndOnRectangleIcon as ArrowLeftEndOnRectangleIconMini,
+} from "@heroicons/react/16/solid";
 
 import classNames from "~/utils/classNames";
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
@@ -39,7 +44,6 @@ const navigation = {
     // { name: "Tiendas", href: "#" },
   ],
 };
-
 
 // CATEGORIES MENU
 function CategoriesDropdowMenu({ onCategorySelect }) {
@@ -68,11 +72,9 @@ function CategoriesDropdowMenu({ onCategorySelect }) {
   );
 }
 const CategoriesMenu = function ({
-  onCategorySelect = () => {}, 
+  onCategorySelect = () => {},
   ...props
-}: { onCategorySelect: Function
-} & UseHierarchicalMenuProps
-) {
+}: { onCategorySelect: Function } & UseHierarchicalMenuProps) {
   const { refine, createURL } = useHierarchicalMenu(props);
   const marketplaceCategories: Array<any> = useMarketplaceCategories() || [];
 
@@ -203,6 +205,18 @@ export default function DesktopMenu({
                   >
                     Accesar
                   </Link>
+
+                  <span className="h-6 w-px bg-gray-600" aria-hidden="true" />
+                </>
+              ) : currentUser?.brand ? (
+                <>
+                  <a
+                    href="https://tienda.mexicolimited.com"
+                    target="_blank"
+                    className="text-sm font-medium text-white hover:text-gray-100"
+                  >
+                    Ir a mi tienda
+                  </a>
 
                   <span className="h-6 w-px bg-gray-600" aria-hidden="true" />
                 </>
@@ -498,7 +512,7 @@ export default function DesktopMenu({
                           <Menu as="div" className="relative">
                             {/* Profile Avatar */}
                             <div>
-                              <Menu.Button className="relative flex p-1 rounded-full bg-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                              <Menu.Button className="relative flex p-1 rounded-full bg-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-secondary-400">
                                 <span className="absolute -inset-1.5" />
                                 <span className="sr-only">
                                   Abrir menu mi cuenta
@@ -538,7 +552,7 @@ export default function DesktopMenu({
                                         to="/account"
                                         className={classNames(
                                           active ? "bg-gray-100" : "",
-                                          "block px-4 py-2 text-sm text-gray-700"
+                                          "flex items-center px-4 py-2 text-sm text-gray-700"
                                         )}
                                       >
                                         Mi cuenta
@@ -551,21 +565,22 @@ export default function DesktopMenu({
                                 <Menu.Item>
                                   {({ active }) => {
                                     return currentUser && currentUser?.brand ? (
-                                      <Link
-                                        to="/admin"
+                                      <a
+                                        href="https://tienda.mexicolimited.com"
+                                        target="_blank"
                                         className={classNames(
                                           active ? "bg-gray-100" : "",
-                                          "block px-4 py-2 text-sm text-gray-700"
+                                          "flex items-center px-4 py-2 text-sm text-gray-700"
                                         )}
                                       >
                                         Ir a mi tienda
-                                      </Link>
+                                      </a>
                                     ) : (
                                       <Link
                                         to="/vende-en-mexico-limited"
                                         className={classNames(
                                           active ? "bg-gray-100" : "",
-                                          "block px-4 py-2 text-sm text-gray-700"
+                                          "flex items-center px-4 py-2 text-sm text-gray-700"
                                         )}
                                       >
                                         Vende con nosotros
@@ -583,9 +598,10 @@ export default function DesktopMenu({
                                           type="submit"
                                           className={classNames(
                                             active ? "bg-gray-100" : "",
-                                            "w-full text-left block px-4 py-2 text-sm text-error-600"
+                                            "w-full flex items-center text-left px-4 py-2 text-sm text-error-600"
                                           )}
                                         >
+                                          <ArrowLeftEndOnRectangleIconMini className="h-4 w-4 mr-2" />{" "}
                                           Cerrar sesión
                                         </button>
                                       </Form>

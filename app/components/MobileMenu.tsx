@@ -4,6 +4,11 @@ import { Dialog, Tab, Transition } from "@headlessui/react";
 
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { MapPinIcon } from "@heroicons/react/20/solid";
+import { 
+  UserIcon as UserIconMini,
+  BuildingStorefrontIcon as BuildingStorefrontIconMini,
+  ArrowLeftEndOnRectangleIcon as ArrowLeftEndOnRectangleIconMini
+} from "@heroicons/react/16/solid"
 
 import classNames from "~/utils/classNames";
 import { useMarketplaceCategories } from "~/providers/MarketplaceCategoriesContext";
@@ -259,17 +264,19 @@ export default function MobileMenu({
                     <Link
                       to="/login"
                       onClick={closeMenu}
-                      className="-m-2 block p-2 font-medium text-gray-900"
+                      className="-m-2 flex items-center p-2 font-medium text-gray-800"
                     >
-                      Ingresa a tu cuenta
+                      <UserIconMini className="h-4 w-4 mr-2 text-gray-500" />
+                      {" "}Ingresa a tu cuenta
                     </Link>
                   ) : (
                     <Link
                       to="/account"
                       onClick={closeMenu}
-                      className="-m-2 block p-2 font-medium text-gray-900"
+                      className="-m-2 flex items-center p-2 font-medium text-gray-800"
                     >
-                      Mi cuenta
+                     <UserIconMini className="h-4 w-4 mr-2 text-gray-500" />
+                     {" "}Mi cuenta
                     </Link>
                   )}
                 </div>
@@ -277,20 +284,22 @@ export default function MobileMenu({
                 {/* SELLERS ACCESS */}
                 <div className="flow-root">
                   {currentUser && currentUser?.brand ? (
-                    <Link
-                      to="/admin"
+                    <a
+                      href="https://tienda.mexicolimited.com"
+                      target="_blank"
                       onClick={closeMenu}
-                      className="-m-2 block p-2 font-medium text-gray-900"
+                      className="-m-2 flex items-center p-2 font-medium text-gray-800"
                     >
                       Ir a mi tienda
-                    </Link>
+                    </a>
                   ) : (
                     <Link
                       to="/vende-en-mexico-limited"
                       onClick={closeMenu}
-                      className="-m-2 block p-2 font-medium text-gray-900"
+                      className="-m-2 flex items-center p-2 font-medium text-gray-800"
                     >
-                      Vende con nosotros
+                      <BuildingStorefrontIconMini className="h-4 w-4 mr-2 text-gray-500" />
+                      {" "}Vende con nosotros
                     </Link>
                   )}
                 </div>
@@ -302,8 +311,9 @@ export default function MobileMenu({
                       <button
                         type="submit"
                         onClick={closeMenu}
-                        className="-m-2 block p-2 font-medium text-error-600"
+                        className="-m-2 flex items-center p-2 font-medium text-error-600"
                       >
+                        <ArrowLeftEndOnRectangleIconMini className="h-4 w-4 mr-2" /> 
                         Cerrar sesión
                       </button>
                     </Form>
