@@ -29,21 +29,14 @@ import {
   algoliaSearchClient,
   algoliaRecommendClient,
   algoliaProductsIndex,
-  algoliaAPISearchEndpoint,
 } from "~/utils/algoliaClients";
 import AuthService from "~/services/Auth.service";
-import {
-  sessionStorage,
-  getSession,
-  commitSession,
-} from "~/services/session.server";
-import authenticator from "~/services/auth.server";
+import { getSession } from "~/services/session.server";
 import { FetcherConfigurationProvider } from "~/providers/FetcherConfigurationContext";
 import { ShoppingCartProvider } from "~/providers/ShoppingCartContext";
 import { MarketplaceCategoriesProvider } from "~/providers/MarketplaceCategoriesContext";
 import AuthProvider from "~/providers/AuthProvider";
 import { Fetcher } from "~/utils/fetcher";
-import CookieUtils from "set-cookie-parser";
 
 // Links
 export const links: LinksFunction = () => [
@@ -58,6 +51,13 @@ export const loader: LoaderFunction = async ({
   // If the user is already authenticated redirect to /dashboard directly
   const user = (await AuthService.isAuthenticated(request)) || null;
   let session = await getSession(request.headers.get("cookie"));
+
+  // Set the Cookies sent from the API server for Auth, CSRF, and Session management
+  let headers = undefined;
+  // Verify if the session is already set
+  if (!session.get(getEnv().API_SESSION_NAME) && !user) {
+    headers = await AuthService.getCSRFCookie(request);
+  }
 
   // Algolia InstantSearch SSR
   const serverUrl = request.url;
@@ -114,8 +114,8 @@ export const loader: LoaderFunction = async ({
       serverUrl,
       shoppingCartItems,
       marketplaceCategories: marketplaceCategories || [],
-    }
-    // { ...(headers ? { headers } : {}) }
+    },
+    headers ? { headers } : {}
   );
 };
 
@@ -135,6 +135,8 @@ export default function App() {
 
   // Set the shopping cart items
   const shoppingCart = shoppingCartItems;
+
+  console.log(user)
 
   //
   return (
@@ -199,7 +201,7 @@ export function ErrorBoundary() {
       </head>
       <body className="h-full">
         {/* <Outlet /> */}
-        Se produjo un error desconocido.
+        Se produjo un error en la aplicación. Por favor intenta de nuevo.
         <pre>
           code [{error?.status}] {error?.message}
         </pre>
@@ -305,32 +307,32 @@ function InstantSearchProvider({
             },
           }),
           // stateMapping: {
-            // stateToRoute(uiState) {
-            //   const indexUiState = uiState[algoliaProductsIndex];
-            //   return {
-            //     query: indexUiState.query,
-            //     categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
-            //     brand: indexUiState.hierarchicalMenu?.["brand.brand"],
-            //     page: indexUiState.page,
-            //     price: indexUiState.numericMenu?.["price"],
-            //   };
-            // },
-            // routeToState(routeState) {
-            //   return {
-            //     [algoliaProductsIndex]: {
-            //       query: routeState.query,
-            //       hierarchicalMenu: {
-            //         ["categories.lvl0"]:
-            //           routeState.categories?.map(decodeURIComponent),
-            //         ["brand.brand"]: routeState.brand,
-            //       },
-            //       page: routeState.page,
-            //       numericMenu: {
-            //         ["price"]: routeState.price,
-            //       },
-            //     },
-            //   };
-            // },
+          // stateToRoute(uiState) {
+          //   const indexUiState = uiState[algoliaProductsIndex];
+          //   return {
+          //     query: indexUiState.query,
+          //     categories: indexUiState.hierarchicalMenu?.["categories.lvl0"],
+          //     brand: indexUiState.hierarchicalMenu?.["brand.brand"],
+          //     page: indexUiState.page,
+          //     price: indexUiState.numericMenu?.["price"],
+          //   };
+          // },
+          // routeToState(routeState) {
+          //   return {
+          //     [algoliaProductsIndex]: {
+          //       query: routeState.query,
+          //       hierarchicalMenu: {
+          //         ["categories.lvl0"]:
+          //           routeState.categories?.map(decodeURIComponent),
+          //         ["brand.brand"]: routeState.brand,
+          //       },
+          //       page: routeState.page,
+          //       numericMenu: {
+          //         ["price"]: routeState.price,
+          //       },
+          //     },
+          //   };
+          // },
           // },
         }}
       >

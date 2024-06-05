@@ -3,9 +3,11 @@ import { sessionStorage } from "./session.server";
 import { AuthorizationError } from "remix-auth";
 import { Fetcher } from "~/utils/fetcher";
 import CookieUtils from "set-cookie-parser";
+
 import authenticator from "../services/auth.server";
 
 import getEnv from "../../get-env";
+import { th } from "date-fns/locale";
 
 // INTERFACES
 interface User {
@@ -60,7 +62,9 @@ class AuthService {
     // Get the CSRF value
     const csrfResponse = await fetch(`${this.API_URL}/sanctum/csrf-cookie`);
     const csrfCookies = await this.getCookiesFromResponse(csrfResponse);
-    const xsrfCookie = csrfCookies.find((cookie) => cookie.name === "XSRF-TOKEN");
+    const xsrfCookie = csrfCookies.find(
+      (cookie) => cookie.name === "XSRF-TOKEN"
+    );
 
     // Attempt to login
     console.log(`${this.API_URL}/login`);
@@ -85,9 +89,10 @@ class AuthService {
       return await Promise.resolve({
         response: loginResponse,
         user: user,
-      }); //await Promise.resolve(user);
+      });
     }
 
+    // If the login failed, throw an error
     throw new AuthorizationError("Wrong credentials");
   }
 
@@ -112,16 +117,19 @@ class AuthService {
         }
       );
 
+      // Get the cookies from the response
       const userCookies = await this.getCookiesFromResponse(userResponse);
-
       xsrfCookie = userCookies.find((cookie) => cookie.name === "XSRF-TOKEN");
       sessionCookie = userCookies.find(
         (cookie) => cookie.name === getEnv().API_SESSION_NAME
       );
+
+      // Set the current user
       currentUser = user;
 
+    //
     } catch (error) {
-      console.log("error", error);
+      console.log("Login error", error);
       // // Because redirects work by throwing a Response, you need to check if the
       // // caught error is a response and return it or throw it again
       // if (error instanceof Response) return error;
@@ -156,31 +164,68 @@ class AuthService {
     return cookies;
   }
 
-  async getCurrentUser({ request }) {
+  async getCurrentUser(request:Request, customToken = undefined) {
     // const user = (await this.isAuthenticated(request)) as User;
     // return await Promise.resolve(user);
 
     //
     let response;
-    try {
-      let session = await sessionStorage.getSession(
-        request.headers.get("Cookie")
-      );
+    let session = await sessionStorage.getSession(
+      request.headers.get("Cookie")
+    );
 
-      const myFetcher = new Fetcher(session.get("token"), request)
-      response = await myFetcher.fetch(`${this.API_URL}/user`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
+    try {
+      const myFetcher = new Fetcher(
+        session.get("token") || customToken || undefined,
+        request
+      );
+      return await myFetcher
+        .fetch(`${this.API_URL}/user`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        })
+        .catch((err) => {
+          throw new Error(err);
+        });
+
     } catch (e) {
       console.log("caught it!", e);
-      throw new Error(e);
+      response = null;
+
+      // await this.logout(request);
+      // throw new Error(e);
     }
 
     return response;
+  }
+
+  async getCSRFCookie(request: Request) {
+    // await this.logout(request, false);
+    // await sessionStorage.destroySession(session);
+
+    // Call the API server to get the session cookie
+    const cookieResponse = await fetch(`${this.API_URL}/sanctum/csrf-cookie`);
+
+    // Parse the cookies from the response and put them into an array
+    const cookies = await this.getCookiesFromResponse(cookieResponse);
+    const sessionCookie = cookies.find(
+      (cookie) => cookie.name === getEnv().API_SESSION_NAME
+    );
+    const xsrfCookie = cookies.find((cookie) => cookie.name === "XSRF-TOKEN");
+
+    // Save the sessionId in the session
+    const headers = await this.setSession(
+      request,
+      undefined,
+      sessionCookie?.value,
+      xsrfCookie?.value
+    );
+
+    //
+    return headers;
   }
 
   async currentToken(request = null) {
@@ -209,41 +254,50 @@ class AuthService {
     return Promise.reject("No request object");
   }
 
-  async setSession(request, user, userCookie, xsrfCookie): Promise<any> {
+  async setSession(request, user, sessionCookie, xsrfCookie): Promise<any> {
     // Get the session
     let session = await sessionStorage.getSession(
       request.headers.get("Cookie")
     );
 
     // Save the user token in the session
-    session.set(authenticator.sessionKey, user);
-    session.set("token", user?.token);
-    session.set("laravel_session", userCookie); //user);
-    session.set("csrf", xsrfCookie);
+    if (user) {
+      session.set(authenticator.sessionKey, user);
+      session.set("token", user?.token);
+    }
+    session.set(getEnv().API_SESSION_NAME, sessionCookie);
+    session.set("XSRF-TOKEN", xsrfCookie);
 
     // commit the session
     let headers = new Headers({
       "Set-Cookie": await sessionStorage.commitSession(session),
     });
-    // headers.append(
-    //   "Set-Cookie",
-    //   `${
-    //     getEnv().API_SESSION_NAME
-    //   }=${userCookie}; path=/; samesite=lax; SameSite=None; Secure`
-    // );
-    // headers.append(
-    //   "Set-Cookie",
-    //   `XSRF-TOKEN=${xsrfCookie}; path=/; samesite=lax; SameSite=None; Secure`
-    // );
-    headers.append("Authorization", `Bearer ${user?.token}`);
+    headers.append(
+      "Set-Cookie",
+      `${
+        getEnv().API_SESSION_NAME
+      }=${sessionCookie}; path=/; samesite=lax; SameSite=None; Secure`
+    );
+    headers.append(
+      "Set-Cookie",
+      `XSRF-TOKEN=${xsrfCookie}; path=/; samesite=lax; SameSite=None; Secure`
+    );
+
+    // Add the auth token to the headers
+    if (user) {
+      headers.append("Authorization", `Bearer ${user?.token}`);
+    }
+
+    //
     return headers;
   }
 
   async isAuthenticated(request) {
+    const test = await authenticator.isAuthenticated(request);
     return authenticator.isAuthenticated(request);
   }
 
-  async logout(request): Promise<any> {
+  async logout(request, autoRedirect = true): Promise<any> {
     const session = await sessionStorage.getSession(
       request.headers.get("Cookie")
     );
