@@ -282,28 +282,40 @@ export let action = async ({ request }: ActionFunctionArgs) => {
 
     case "review":
       // Process payment
-      const orderPayment = await fetcher
-        .fetch(`${getEnv().API_URL}/stripe/pay`, {
+      const updatedShoppingCart2 = await fetcher
+        .fetch(`${getEnv().API_URL}/cart`, {
           method: "POST",
           body: formData,
         })
         .catch((error) => {
           console.log("error", error);
-          return (errors.payment_error = {
-            message: "Error processing payment",
-            type: "payment_error",
+          return (errors.shipping_error = {
+            message: "Error updating cart",
+            type: "shipping_error",
             error: error,
           });
         });
+      // const orderPayment = await fetcher
+      //   .fetch(`${getEnv().API_URL}/stripe/pay`, {
+      //     method: "POST",
+      //     body: formData,
+      //   })
+      //   .catch((error) => {
+      //     console.log("error", error);
+      //     return (errors.payment_error = {
+      //       message: "Error processing payment",
+      //       type: "payment_error",
+      //       error: error,
+      //     });
+      //   });
 
-      console.log("ORDER PAYMENT REFERENCE ", orderPayment);
+      console.log("ORDER PAYMENT REFERENCE ", updatedShoppingCart2);
 
       // Return data
       // return redirect("/checkout/purchase_confirmation");
       return {
         step: "purchase_confirmation",
-        errors,
-        purchase: orderPayment,
+        errors
       };
 
     default:
@@ -435,8 +447,8 @@ export default function CheckoutPage() {
         event.preventDefault();
         
         try {
-          handlePaymentConfirmation();
-          // checkoutForm.submit(formData, { method: "POST" });
+          // handlePaymentConfirmation();
+          checkoutForm.submit(formData, { method: "POST" });
           // return;
           // Catch errors
         } catch (e) {
@@ -453,14 +465,13 @@ export default function CheckoutPage() {
     }
   }
   useEffect(() => {
-    // if (
-    //   checkoutForm.state === "idle" &&
-    //   checkoutForm.data?.step == "purchase_confirmation" &&
-    //   checkoutForm.data?.purchase.type == "success"
-    // ) {
-    //   // Confirm stripe payment
-    //   handlePaymentConfirmation(checkoutForm.data?.purchase);
-    // }
+    if (
+      checkoutForm.state === "idle" &&
+      checkoutForm.data?.step == "purchase_confirmation"
+    ) {
+      // Confirm stripe payment
+      handlePaymentConfirmation();
+    }
   }, [checkoutForm]);
 
   // Confirm payment
