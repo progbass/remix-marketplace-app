@@ -94,7 +94,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   // Retrieve purchase details
   const purchaseDetails = await fetcher
-    .fetch(`${getEnv().API_URL}/purchase/269`, { method: "GET" })
+    .fetch(`${getEnv().API_URL}/purchase/${orderPayment.id}`, { method: "GET" })
     .catch((error) => {
       console.log("error ", error);
     });
@@ -171,7 +171,7 @@ export default function ThankYou() {
               <div className="px-4 py-6 sm:px-6 lg:grid lg:grid-cols-12 lg:gap-x-8 lg:p-8">
                 {/* Products list */}
                 <div className="flex lg:col-span-7">
-                  <div className="flex-shrink-0 overflow-hidden rounded-sm h-14 w-14">
+                  <div className="flex-shrink-0 overflow-hidden rounded-sm h-16 w-16">
                     <img
                       src={order.static_products[0]?.image}
                       alt={order.static_products[0]?.name}
@@ -230,7 +230,7 @@ export default function ThankYou() {
 
                 {/* Customer details */}
                 <div className="mt-6 lg:col-span-5 lg:mt-0">
-                  <dl className="grid grid-cols-2 gap-x-6 text-sm">
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-sm">
                     <div>
                       <dt className="font-medium text-gray-900">
                         Dirección de entrega
@@ -244,9 +244,9 @@ export default function ThankYou() {
                       <dt className="font-medium text-gray-900">
                         Contacto de compra
                       </dt>
-                      <dd className="mt-3 space-y-3 text-gray-500">
-                        <p>{customer.email}</p>
-                        <p>{customer.phone}</p>
+                      <dd className="mt-3 text-gray-500">
+                        <span className="block">{customer.email}</span>
+                        <span className="block">{customer.phone}</span>
                         {/* <button
                           type="button"
                           className="font-medium text-secondary-600 hover:text-secondary-500"
@@ -313,11 +313,9 @@ export default function ThankYou() {
 
       {/* Billing */}
       <section aria-labelledby="summary-heading" className="mt-16">
-        <h2 id="summary-heading" className="sr-only">
-          Billing Summary
-        </h2>
 
         <div className="bg-gray-100 px-4 py-6 sm:rounded-lg sm:px-6 lg:grid lg:grid-cols-12 lg:gap-x-8 lg:px-8 lg:py-8">
+          <h2 id="summary-heading" className="lg:hidden">Resumen</h2>
           {/* 
           <dl className="grid grid-cols-2 gap-6 text-sm sm:grid-cols-2 md:gap-x-8 lg:col-span-7">
             // Billing Information
@@ -360,11 +358,11 @@ export default function ThankYou() {
           */}
 
           {/* Order Summary */}
-          <dl className="mt-8 divide-y divide-gray-200 text-sm lg:col-span-5 lg:mt-0">
+          <dl className="mt-6 divide-y divide-gray-200 text-sm lg:col-span-5 lg:col-start-8 lg:mt-0">
             <div className="flex items-center justify-between pb-4">
               <dt className="text-gray-600">Subtotal</dt>
               <dd className="font-medium text-gray-900">
-                {purchase?.subtotal}
+                {formatPrice(purchase?.subtotal)}
               </dd>
             </div>
             <div className="flex items-center justify-between py-4">
@@ -372,7 +370,7 @@ export default function ThankYou() {
                 Costo de envío {`(${orders.length} envíos)`}
               </dt>
               <dd className="font-medium text-gray-900">
-                {purchase?.shippingCost}
+                {formatPrice(purchase?.shippingCost)}
               </dd>
             </div>
             {/* <div className="flex items-center justify-between py-4">
@@ -380,8 +378,8 @@ export default function ThankYou() {
               <dd className="font-medium text-gray-900">$6.16</dd>
             </div> */}
             <div className="flex items-center justify-between pt-4">
-              <dt className="font-medium text-gray-900">Total</dt>
-              <dd className="font-medium text-secondary-600">{purchase?.total}</dd>
+              <dt className="text-base font-semibold text-gray-900">Total</dt>
+              <dd className="text-base font-semibold text-secondary-600">{formatPrice(purchase?.total)}</dd>
             </div>
           </dl>
         </div>
@@ -389,8 +387,8 @@ export default function ThankYou() {
 
       {/* Call to Action Container */}
       <section aria-labelledby="summary-heading" className="mt-16">
-        <div className="flex flex-col items-center justify-center">
-          <h3 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-xl">
+        <div className="flex flex-col items-center justify-center px-4">
+          <h3 className="text-2xl font-bold tracking-tight text-gray-900 text-center sm:text-xl">
             Continúa explorando México Limited
           </h3>
 
