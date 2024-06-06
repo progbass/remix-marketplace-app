@@ -29,7 +29,6 @@ export function validateLastName(lastname: string): [boolean, Array<any>] {
     errors.push("Los apellidos deben tener al menos 2 caracteres.");
   }
 
-  console.log("isValid lastname ", isValid, "errors", errors);
   return [isValid, errors];
 }
 
@@ -170,8 +169,6 @@ export function validateShippingAddressForm(formValues: {
 }): { [key: string]: any } {
   const errors: any = {};
 
-  console.log('para validar', formValues?.["user[name]"])
-
   // Check if formValues is empty
   if (!formValues) {
     return { default: ["Form not present."] };
@@ -214,10 +211,10 @@ export function validateShippingAddressForm(formValues: {
   }
 
   // Address interior number validation
-  const [isNumIntValid, numIntErrors] = validateAddressNumber(formValues["user[num_int]"]);
-  if (!isNumIntValid) {
-    errors["user[num_int]"] = numIntErrors;
-  }
+  // const [isNumIntValid, numIntErrors] = validateAddressNumber(formValues["user[num_int]"]);
+  // if (!isNumIntValid) {
+  //   errors["user[num_int]"] = numIntErrors;
+  // }
 
   // Address zipcode validation
   const [isZipValid, zipErrors] = validateZip(formValues["user[zipcode]"]);
@@ -242,6 +239,9 @@ export function validateShippingAddressForm(formValues: {
   if (!isNeighborhoodValid) {
     errors["user[neighborhood]"] = neighborhoodErrors;
   }
+
+
+  console.log('para validar', errors)
 
   return errors;
 }
