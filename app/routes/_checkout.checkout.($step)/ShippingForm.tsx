@@ -406,12 +406,12 @@ export default function ShippingForm({
               label="Interior, departamento, etc."
               autoComplete="num_int"
               defaultValue={shippingAddress.num_int}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
-              }}
-              onBlur={(e: ChangeEvent<HTMLInputElement>) => {
-                validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
-              }}
+              // onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              //   validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
+              // }}
+              // onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+              //   validateField({name: e.target.name, value: e.target.value}, validateAddressNumber);
+              // }}
               errors={formErrors?.["user[num_int]"]}
             />
           </div>
