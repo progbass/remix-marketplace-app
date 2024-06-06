@@ -213,7 +213,7 @@ export default function ShoppingCart() {
                               <img
                                 src={product.image}
                                 alt={product.name}
-                                className="h-18 w-18 rounded-md object-cover object-center sm:h-48 sm:w-48"
+                                className="h-28 w-28 sm:h-32 sm:w-32 rounded-md object-cover object-center"
                               />
                             </Link>
                           </div>
