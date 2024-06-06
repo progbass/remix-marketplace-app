@@ -58,9 +58,9 @@ export default function ReviewForm({
         <input type="hidden" name="user[phone]" value={shippingInformation.phone} />
         <input type="hidden" name="user[street]" value={shippingInformation.street} />
         <input type="hidden" name="user[num_ext]" value={shippingInformation.num_ext} />
-        <input type="hidden" name="user[num_int]" value={shippingInformation.num_int} />
+        <input type="hidden" name="user[num_int]" value={shippingInformation.num_int || undefined} />
         <input type="hidden" name="user[neighborhood]" value={shippingInformation.neighborhood} />
-        <input type="hidden" name="user[zipcode]" value={shippingInformation.zipcode} />
+        <input type="hidden" name="user[zipcode]" value={String(shippingInformation.zipcode)} />
         <input type="hidden" name="user[town_id]" value={shippingInformation.town_id} />
         <input type="hidden" name="user[state_id]" value={shippingInformation.state_id} />
 
