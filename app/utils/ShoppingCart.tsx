@@ -64,7 +64,7 @@ export type ShippingMethod = {
   serviceType: number | string;
   serviceName: string;
   deliveryTimestamp: string;
-  amount: number;
+  amount: number | string;
   currency: string;
   packageSize: string;
   insurance_availability: boolean;
@@ -96,6 +96,7 @@ export type ShippingQuote = {
 };
 
 //
+const DEFAULT_SHIPPING_COST = 0;
 const defaultShipping: ShippingInformation = {
   street: "",
   num_ext: "",
@@ -374,7 +375,7 @@ class ShoppingCart {
     return this.getCart().cart;
   }
 
-  async removeProductFromCart(
+  async removeFromCart(
     product: ShoppingCartProduct
   ): Promise<ShoppingCartShop[]> {
     // Look for the  product in within the shops
@@ -388,7 +389,7 @@ class ShoppingCart {
     // Remove product from cart
     shop.products = shop.products.filter((p) => p.id !== product.id);
     this.cart = [...this.cart.filter((s) => s.id !== shop.id)];
-    if (shop.products) {
+    if (shop.products.length) {
       this.cart = [...this.cart, shop];
     }
 
@@ -439,9 +440,9 @@ class ShoppingCart {
     const calculatedAmount: number = this.cart.reduce((shopTotal, shop) => {
       return (
         shopTotal +
-        (shop.selectedShippingMethod && !isNaN(shop.selectedShippingMethod?.amount)
-          ? shop.selectedShippingMethod.amount
-          : 0)
+        (shop.selectedShippingMethod // && !isNaN(shop.selectedShippingMethod?.amount)
+          ? Number(shop.selectedShippingMethod.amount)
+          : DEFAULT_SHIPPING_COST)
       );
     }, 0);
 
