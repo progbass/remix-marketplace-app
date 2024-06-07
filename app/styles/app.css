@@ -1025,10 +1025,6 @@ select {
   grid-column-start: 2;
 }
 
-.col-start-4 {
-  grid-column-start: 4;
-}
-
 .row-start-1 {
   grid-row-start: 1;
 }
@@ -1361,10 +1357,6 @@ select {
   height: 3rem;
 }
 
-.h-14 {
-  height: 3.5rem;
-}
-
 .h-16 {
   height: 4rem;
 }
@@ -1501,8 +1493,8 @@ select {
   width: 3rem;
 }
 
-.w-14 {
-  width: 3.5rem;
+.w-16 {
+  width: 4rem;
 }
 
 .w-20 {
@@ -1603,10 +1595,6 @@ select {
 
 .w-screen {
   width: 100vw;
-}
-
-.w-16 {
-  width: 4rem;
 }
 
 .min-w-0 {
@@ -2507,6 +2495,18 @@ select {
   background-color: rgb(255 255 255 / 0.1);
 }
 
+.bg-white\/50 {
+  background-color: rgb(255 255 255 / 0.5);
+}
+
+.bg-white\/70 {
+  background-color: rgb(255 255 255 / 0.7);
+}
+
+.bg-white\/80 {
+  background-color: rgb(255 255 255 / 0.8);
+}
+
 .bg-opacity-0 {
   --tw-bg-opacity: 0;
 }
@@ -3303,6 +3303,36 @@ select {
   color: rgb(250 204 21 / var(--tw-text-opacity));
 }
 
+.text-amber-600 {
+  --tw-text-opacity: 1;
+  color: rgb(217 119 6 / var(--tw-text-opacity));
+}
+
+.text-amber-500 {
+  --tw-text-opacity: 1;
+  color: rgb(245 158 11 / var(--tw-text-opacity));
+}
+
+.text-amber-700 {
+  --tw-text-opacity: 1;
+  color: rgb(180 83 9 / var(--tw-text-opacity));
+}
+
+.text-yellow-700 {
+  --tw-text-opacity: 1;
+  color: rgb(161 98 7 / var(--tw-text-opacity));
+}
+
+.text-green-600 {
+  --tw-text-opacity: 1;
+  color: rgb(22 163 74 / var(--tw-text-opacity));
+}
+
+.text-secondary-500 {
+  --tw-text-opacity: 1;
+  color: rgb(99 102 241 / var(--tw-text-opacity));
+}
+
 .line-through {
   text-decoration-line: line-through;
 }
@@ -3343,6 +3373,10 @@ select {
 
 .opacity-\[0\.45\] {
   opacity: 0.45;
+}
+
+.opacity-75 {
+  opacity: 0.75;
 }
 
 .mix-blend-multiply {
@@ -5118,10 +5152,6 @@ select {
     grid-column: span 7 / span 7;
   }
 
-  .lg\:col-span-12 {
-    grid-column: span 12 / span 12;
-  }
-
   .lg\:col-start-1 {
     grid-column-start: 1;
   }
@@ -5130,16 +5160,12 @@ select {
     grid-column-start: 2;
   }
 
-  .lg\:col-start-9 {
-    grid-column-start: 9;
-  }
-
   .lg\:col-start-8 {
     grid-column-start: 8;
   }
 
-  .lg\:col-start-7 {
-    grid-column-start: 7;
+  .lg\:col-start-9 {
+    grid-column-start: 9;
   }
 
   .lg\:row-span-2 {
