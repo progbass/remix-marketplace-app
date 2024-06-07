@@ -49,7 +49,12 @@ export const loader: LoaderFunction = async ({
   request,
 }: LoaderFunctionArgs) => {
   // If the user is already authenticated redirect to /dashboard directly
-  const user = (await AuthService.isAuthenticated(request)) || null;
+  let userFetchError = false;
+  const user = await AuthService.getCurrentUser(request).catch((err) => {
+    console.error(err);
+    userFetchError = true;
+    return null;
+  });
   let session = await getSession(request.headers.get("cookie"));
 
   // Set the Cookies sent from the API server for Auth, CSRF, and Session management
@@ -59,7 +64,10 @@ export const loader: LoaderFunction = async ({
   if (!session.get(getEnv().API_SESSION_NAME)) {
     shouldSetCookies = true;
   }
-  if(!session.get("XSRF-TOKEN") || !user){
+  if(!session.get("XSRF-TOKEN")){
+    shouldSetCookies = true;
+  }
+  if(userFetchError){
     shouldSetCookies = true;
   }
   if(shouldSetCookies){
