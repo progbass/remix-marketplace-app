@@ -55,6 +55,8 @@ export const loader: LoaderFunction = async ({
   // Set the Cookies sent from the API server for Auth, CSRF, and Session management
   let headers = undefined;
   // Verify if the session is already set
+  console.log("Cookie remix session: ", session.get(getEnv().API_SESSION_NAME));
+  console.log("Cookie user value: ", user);
   if (!session.get(getEnv().API_SESSION_NAME) && !user) {
     headers = await AuthService.getCSRFCookie(request);
   }
