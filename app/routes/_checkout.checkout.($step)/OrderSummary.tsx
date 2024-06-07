@@ -1,5 +1,5 @@
 import { Link } from "@remix-run/react";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { FetcherWithComponents } from "@remix-run/react";
 import { RadioGroup } from "@headlessui/react";
 import {
@@ -18,17 +18,18 @@ import type {
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import classNames from "~/utils/classNames";
 import { formatPrice } from "~/utils/formatPrice";
+import Spinner from "~/components/Spinner";
 
 //
 type OrderSummaryProps = {
   cartStep: string | undefined;
   checkoutForm: FetcherWithComponents<any>;
-  checkoutFormRef: HTMLFormElement | undefined;
+  checkoutFormRef: HTMLFormElement;
   isFormCompleted: boolean;
   onProductRemove: (product: any) => void;
   onProductQuantityChange: (product: any, quantity: any) => void;
 };
-export default memo(function ({
+export default (function ({
   cartStep,
   checkoutForm,
   checkoutFormRef,
@@ -37,8 +38,7 @@ export default memo(function ({
   onProductQuantityChange,
 }: OrderSummaryProps) {
   // Shopping Cart
-  const ShoppingCartInstance = useShoppingCart();
-  const localShoppingCart = ShoppingCartInstance;
+  const localShoppingCart = useShoppingCart();
   const storesList = localShoppingCart.getCart().cart;
 
   // Handle the delivery method change
@@ -46,6 +46,9 @@ export default memo(function ({
     storeId: number,
     deliveryMethod: ShippingMethod
   ) => {
+    // Update the shopping cart for optimistic UI
+    localShoppingCart.setShippingMethod(storeId, deliveryMethod);
+
     // Save the selected delivery method to the server
     // The form has a delay to allow the DOM to update the hidden inputs
     setTimeout(() => {
@@ -86,6 +89,13 @@ export default memo(function ({
     return true;
   }
 
+  // Disable if the form is being submitted
+  const displayLoadingSpinner = false;
+  // const displayLoadingSpinner =
+  //   (checkoutForm.state === "submitting" || checkoutForm.state === "loading") &&
+  //   checkoutForm.formData &&
+  //   checkoutForm.formData.get("action") === "setShippingMethod";
+
   // Render the component
   return (
     <aside className="mt-10 lg:mt-0">
@@ -93,174 +103,192 @@ export default memo(function ({
 
       <div className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm">
         <h3 className="sr-only">Productos en tu carrito</h3>
-        <ul role="list" className="divide-y divide-gray-200">
-          {storesList.map((store: ShoppingCartShop, index) => (
-            <li key={store.id} className="px-4 py-6 sm:px-6">
-              <h3 className="font-medium">{store.name}</h3>
 
-              {/* HIDDEN INPUTS */}
-              {
-                // Include all products in the cart as hidden inputs
-                store.products.map((product, productIndex) => {
-                  return Array.from(Object.keys(product)).map(
-                    (keyName: string) => {
-                      return (
-                        <input
-                          type="hidden"
-                          name={`stores[${store.id}][products][${productIndex}][${keyName}]`}
-                          value={
-                            product[keyName] === null
-                              ? undefined
-                              : product[keyName]
-                          }
-                        />
-                      );
-                    }
-                  );
-                })
-              }
-              <input
-                type="hidden"
-                name={`stores[${store.id}][id]`}
-                defaultValue={`${store?.id}`}
-              />
-              <input
-                type="hidden"
-                name={`stores[${store.id}][name]`}
-                defaultValue={`${store?.name}`}
-              />
-              <input
-                type="hidden"
-                name={`stores[${store.id}][image]`}
-                defaultValue={`${store?.image}`}
-              />
-              <input
-                type="hidden"
-                name={`stores[${store.id}][user_id]`}
-                defaultValue={`${store?.id}`}
-              />
-              <input
-                type="hidden"
-                name={`stores[${store.id}][location]`}
-                defaultValue={`${store?.location}`}
-              />
+        {/* STORES LIST CONTAINER */}
+          <ul role="list" className="divide-y divide-gray-200">
+            {storesList.map((store: ShoppingCartShop, index) => (
+              <li key={store.id} className="px-4 py-6 sm:px-6">
+                <h3 className="font-medium">{store.name}</h3>
 
-              {/* PRODUCTS LIST */}
-              {store.products.map((product: ShoppingCartProduct) => (
-                <div key={product.id} className="mt-5 relative">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <Link
-                        to={`/product/${product.id}`}
-                        className="font-medium text-gray-700 hover:text-gray-800"
-                      >
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="h-16 w-16 rounded-md object-cover object-center"
-                        />
-                      </Link>
-                    </div>
+                {/* HIDDEN INPUTS */}
+                {
+                  // Include all products in the cart as hidden inputs
+                  store.products.map((product: ShoppingCartProduct, productIndex: number) => {
+                    return Object.keys(product).map((keyName: string) => {
+                        return (
+                          <input
+                            type="hidden"
+                            name={`stores[${store.id}][products][${productIndex}][${keyName}]`}
+                            value={
+                              product[keyName] === null
+                                ? undefined
+                                : product[keyName]
+                            }
+                          />
+                        );
+                      }
+                    );
+                  })
+                }
+                <input
+                  type="hidden"
+                  name={`stores[${store.id}][id]`}
+                  defaultValue={`${store?.id}`}
+                />
+                <input
+                  type="hidden"
+                  name={`stores[${store.id}][name]`}
+                  defaultValue={`${store?.name}`}
+                />
+                <input
+                  type="hidden"
+                  name={`stores[${store.id}][image]`}
+                  defaultValue={`${store?.image}`}
+                />
+                <input
+                  type="hidden"
+                  name={`stores[${store.id}][user_id]`}
+                  defaultValue={`${store?.id}`}
+                />
+                <input
+                  type="hidden"
+                  name={`stores[${store.id}][location]`}
+                  defaultValue={`${store?.location}`}
+                />
 
-                    <div className="ml-6 flex flex-1 flex-col">
-                      <div className="flex">
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm">
-                            <Link
-                              to={`/product/${product.id}`}
-                              className="font-medium text-gray-700 hover:text-gray-800"
-                            >
-                              {product.name}
-                            </Link>
-                          </h4>
-
-                          {/* PRODUCT VARIATIONS */}
-                          {product.modelo !== null && (
-                            <div className="mt-1 flex text-sm">
-                              <p className="text-gray-500">
-                                <span>Talla/modelo: </span>
-
-                                <span>
-                                  {product.namemodel_size || ""}
-                                  {product.namemodel_size &&
-                                  product.namemodel_model
-                                    ? `${product.namemodel_size} / ${product.namemodel_model}`
-                                    : ""}
-                                  {product.namemodel || ""}
-                                </span>
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="ml-4 flow-root flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => onProductRemove(product)}
-                            className="-m-2.5 flex items-center justify-center bg-white p-2.5 text-gray-400 hover:text-gray-500"
-                          >
-                            <span className="sr-only">Remove</span>
-                            <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                        </div>
+                {/* PRODUCTS LIST */}
+                {store.products.map((product: ShoppingCartProduct) => (
+                  <div key={product.id} className="mt-5 relative">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <Link
+                          to={`/product/${product.id}`}
+                          className="font-medium text-gray-700 hover:text-gray-800"
+                        >
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="h-16 w-16 rounded-md object-cover object-center"
+                          />
+                        </Link>
                       </div>
 
-                      <div className="flex flex-1 justify-between pt-2">
-                        <div>
-                          <p className="mt-1 text-sm font-medium text-gray-900">
-                            {formatPrice(product.price * product.quantity)}
-                          </p>
+                      <div className="ml-6 flex flex-1 flex-col">
+                        <div className="flex">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm">
+                              <Link
+                                to={`/product/${product.id}`}
+                                className="font-medium text-gray-700 hover:text-gray-800"
+                              >
+                                {product.name}
+                              </Link>
+                            </h4>
+
+                            {/* PRODUCT VARIATIONS */}
+                            {product.modelo !== null && (
+                              <div className="mt-1 flex text-sm">
+                                <p className="text-gray-500">
+                                  <span>Talla/modelo: </span>
+
+                                  <span>
+                                    {product.namemodel_size || ""}
+                                    {product.namemodel_size &&
+                                    product.namemodel_model
+                                      ? `${product.namemodel_size} / ${product.namemodel_model}`
+                                      : ""}
+                                    {product.namemodel || ""}
+                                  </span>
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="ml-4 flow-root flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => onProductRemove(product)}
+                              className="-m-2.5 flex items-center justify-center bg-white p-2.5 text-gray-400 hover:text-gray-500"
+                            >
+                              <span className="sr-only">Remove</span>
+                              <TrashIcon
+                                className="h-5 w-5"
+                                aria-hidden="true"
+                              />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="ml-4">
-                          <label
-                            htmlFor={`quantity-${product.id}`}
-                            className="sr-only"
-                          >
-                            Cantidad, {product.name}
-                          </label>
-                          <select
-                            id={`quantity-${product.id}`}
-                            name={`quantity-${product.id}`}
-                            defaultValue={product.quantity}
-                            onChange={(event) =>
-                              onProductQuantityChange(product, event)
-                            }
-                            className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-secondary-500 focus:outline-none focus:ring-1 focus:ring-secondary-500 sm:text-sm"
-                          >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                              .slice(0, product.stock)
-                              .map((value) => (
-                                <option value={value} key={value}>
-                                  {value}
-                                </option>
-                              ))}
-                          </select>
-
-                          {/* UNIT PRICE */}
-                          {product.quantity > 1 ? (
-                            <p className="pl-1 mt-1 text-xs font-medium text-gray-900">
-                              <span className="text-gray-500 font-normal">
-                                {formatPrice(product.price)} c/u
-                              </span>
+                        <div className="flex flex-1 justify-between pt-2">
+                          <div>
+                            <p className="mt-1 text-sm font-medium text-gray-900">
+                              {formatPrice(product.price * product.quantity)}
                             </p>
-                          ) : null}
+                          </div>
+
+                          <div className="ml-4">
+                            <label
+                              htmlFor={`quantity-${product.id}`}
+                              className="sr-only"
+                            >
+                              Cantidad, {product.name}
+                            </label>
+                            <select
+                              id={`quantity-${product.id}`}
+                              name={`quantity-${product.id}`}
+                              defaultValue={product.quantity}
+                              onChange={(event) =>
+                                onProductQuantityChange(product, event)
+                              }
+                              className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-secondary-500 focus:outline-none focus:ring-1 focus:ring-secondary-500 sm:text-sm"
+                            >
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                                .slice(0, product.stock || undefined)
+                                .map((value) => (
+                                  <option value={value} key={value}>
+                                    {value}
+                                  </option>
+                                ))}
+                            </select>
+
+                            {/* UNIT PRICE */}
+                            {product.quantity > 1 ? (
+                              <p className="pl-1 mt-1 text-xs font-medium text-gray-900">
+                                <span className="text-gray-500 font-normal">
+                                  {formatPrice(product.price)} c/u
+                                </span>
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
+                ))}
+
+                {/* SHIPPING QUOTES */}
+                <div className="relative">
+                  {displayLoadingSpinner && (
+                    <div className="absolute bg-white/80 w-full h-full flex justify-center z-10  ">
+                      <div className="flex items-center flex-col self-center ">
+                        <Spinner />
+                        <div className="mt-4">
+                          <p>Actualizando información</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <ShippingQuotesList
+                    store={store}
+                    handleDeliveryMethodChange={handleDeliveryMethodChange}
+                  />
+                
                 </div>
-              ))}
+              </li>
+            ))}
+          </ul>
 
-              {/* SHIPPING QUOTES */}
-              <ShippingQuotesList
-                store={store}
-                handleDeliveryMethodChange={handleDeliveryMethodChange}
-              />
-            </li>
-          ))}
-        </ul>
-
+        {/* PRICE BREAKDOWN */}
         <dl className="space-y-6 border-t border-gray-200 px-4 py-6 sm:px-6">
           <div className="flex items-center justify-between">
             <dt className="text-sm">Subtotal {}</dt>
@@ -314,6 +342,7 @@ export default memo(function ({
           </div>
         </dl>
 
+        {/* SUBMIT BUTTON */}
         <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
           <button
             disabled={isSubmitDisabled()}

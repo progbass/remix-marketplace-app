@@ -368,7 +368,23 @@ export default function CheckoutPage() {
   // Display a progress bar based on the current step and action data state
   const [isLoading, setIsLoading] = useState(false);
   useEffect(() => {
-    if (checkoutForm.state === "loading") {
+    const formData = checkoutForm.formData;
+
+    // Determine the current step
+    let currentStep: string|null = "cart";
+    if (formData) {
+      currentStep = formData.get("action");
+    }
+
+    // Show loading modal
+    if (
+      checkoutForm.state === "loading"
+      && !(
+        currentStep?.includes("setShippingMethod")
+        || currentStep?.includes("removeProduct")
+        || currentStep?.includes("updateProduct")
+      )
+    ) {
       setIsLoading(true);
     } else {
       setIsLoading(false);
@@ -377,7 +393,6 @@ export default function CheckoutPage() {
 
   // Shopping Cart
   const ShoppingCartInstance = useShoppingCart();
-  ShoppingCartInstance.setCart(shoppingCart);
   ShoppingCartInstance.setShippingQuotes(shippingQuotes?.deliveries || []);
 
   // Handle product quantity changes
@@ -385,6 +400,13 @@ export default function CheckoutPage() {
     product: ShoppingCartProduct,
     event: React.FormEvent<HTMLFormElement>
   ) => {
+    // Optimistic UI update
+    ShoppingCartInstance.updateProductQuantity(
+      product,
+      Number(event.currentTarget.value)
+    );
+
+    // Update product quantity
     const item = {
       action: "updateProduct",
       ...product,
@@ -410,7 +432,10 @@ export default function CheckoutPage() {
 
   // Handle remove product
   const handleProductRemove = (product: ShoppingCartProduct) => {
-    //
+    // Optimistic UI update
+    ShoppingCartInstance.removeFromCart(product);
+
+    // Submit form asynchronously
     checkoutForm.submit(
       {
         ...product,
