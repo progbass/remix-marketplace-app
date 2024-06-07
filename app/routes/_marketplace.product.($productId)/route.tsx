@@ -2,13 +2,15 @@ import { Link, useLoaderData, useFetcher } from "@remix-run/react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Fragment, useState, useEffect } from "react";
-import { StarIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
 import {
-  Dialog,
-  Popover,
+  useConfigure,
+  useHits,
+} from "react-instantsearch";
+import { CheckCircleIcon } from "@heroicons/react/20/solid";
+import { TruckIcon } from "@heroicons/react/24/outline";
+import {
   RadioGroup,
   Tab,
-  Transition,
 } from "@headlessui/react";
 import parse from "html-react-parser";
 
@@ -18,26 +20,13 @@ import type { Product } from "~/types/Product";
 import { useShoppingCart } from "~/providers/ShoppingCartContext";
 import classNames from "~/utils/classNames";
 import AuthService from "~/services/Auth.service";
+import { getSession } from "~/services/session.server";
 import getEnv from "get-env";
+import { formatPrice } from "~/utils/formatPrice";
 import { Fetcher } from "~/utils/fetcher";
 import SelectBox from "~/components/SelectBox";
 import DialogOverlay from "~/components/DialogOverlay";
 import ProductThumbnail from "~/components/ProductThumbnail";
-import { formatPrice } from "~/utils/formatPrice";
-import { getSession } from "~/services/session.server";
-import {
-  Configure,
-  Hits,
-  InstantSearch,
-  Pagination,
-  SearchBox,
-  useConfigure,
-  useHits,
-} from "react-instantsearch";
-import {
-  algoliaProductsIndex,
-  algoliaSearchClient,
-} from "~/utils/algoliaClients";
 
 const reviews = {
   average: 4,
@@ -123,12 +112,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       // throw new Error("Error fetching product data");
       error = err;
     });
-
-  //
-  // const { hit } = useConfigure({
-  //   hitsPerPage: 15,
-
-  // });
 
   // Return loader data
   return {
@@ -271,15 +254,6 @@ export default function ProductPage() {
 
   // Validate form
   function validateForm(e) {
-    console.log("Validating form");
-    console.log("selectedProductVariation", selectedProductVariation);
-    console.log("selectedQuantity", selectedQuantity);
-    console.log(
-      "selectedProductVariationMaxStock",
-      selectedProductVariationMaxStock
-    );
-    console.log("productVariationType", productVariationType);
-
     // If the product has models, validate that a model has been selected
     if (
       productVariationType !== PRODUCT_VARIATION_TYPES.UNIQUE &&
@@ -303,8 +277,6 @@ export default function ProductPage() {
       return;
     }
   }
-
-  console.log("product", selectedProductVariationGallery);
 
   // Return main component
   return (
@@ -368,7 +340,7 @@ export default function ProductPage() {
             <div className="mt-2">
               <Link
                 to={`/store/${product.users_id}`}
-                className="text-sm text-gray-500"
+                className="text-sm font-medium text-gray-500 hover:text-secondary-500"
               >
                 {product.entrepreneur}
               </Link>
@@ -379,9 +351,29 @@ export default function ProductPage() {
                 {product.entrepreneur_state}
               </p>
 
+              {/* PRICE & DISCOUNT */}
               <p className="mt-4 text-3xl tracking-tight text-gray-900">
                 MXN {formatPrice(product.price)}
               </p>
+              {product.discount > 0 && (
+                <div className="mt-1 flex items-center">
+                  <p className="text-md text-gray-500">
+                    <span className="font-bold text-green-600">
+                      -{product.discount} %{"  "}
+                    </span>
+                    Precio de lista: MXN{" "}
+                    <span className=" line-through ">
+                      {formatPrice(product.pre_price)}
+                    </span>
+                  </p>
+                </div>
+              )}
+
+              {/* FREE SHIPPING */}
+              <div className="flex items-center mt-2 text-yellow-700">
+                <TruckIcon className="h-5 w-5" aria-hidden="true" />
+                <p className="ml-2 text-md font-medium">Envío gratis</p>
+              </div>
             </div>
 
             {/* <div>
@@ -610,6 +602,7 @@ export default function ProductPage() {
           </div> */}
         </div>
 
+        {/* SUB SECTIONS / TABS NAVIGATION */}
         <div className="mx-auto mt-16 w-full max-w-2xl lg:col-span-4 lg:mt-0 lg:max-w-none">
           <Tab.Group as="div">
             <div className="border-b border-gray-200">
@@ -745,9 +738,6 @@ export default function ProductPage() {
         </div>
       </div>
 
-      
-
-
       {/* Related products */}
       <div className="mx-auto mt-24 max-w-2xl sm:mt-32 lg:max-w-none">
         <div className="flex items-center justify-between space-x-4">
@@ -808,11 +798,7 @@ export default function ProductPage() {
   );
 }
 
-const ProductListing = ({
-  title = null,
-  ...props
-}) => {
-
+const ProductListing = ({ title = null, ...props }) => {
   const DEFAULT_MAX_RESULTS = 4;
 
   // Configure the search
@@ -825,12 +811,10 @@ const ProductListing = ({
     escapeHTML: false,
   });
 
-  
-
   // Render the component
   return (
     <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
-      {hits.map(product => (
+      {hits.map((product) => (
         <ProductThumbnail
           containerClassName="border-0"
           key={product.id}
