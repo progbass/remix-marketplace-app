@@ -167,19 +167,22 @@ class AuthService {
   async getCurrentUser(request:Request, customToken = undefined) {
     // const user = (await this.isAuthenticated(request)) as User;
     // return await Promise.resolve(user);
-
     //
     let response;
     let session = await sessionStorage.getSession(
       request.headers.get("Cookie")
     );
 
+    if(!session.get("token")){
+      return null;
+    }
+
     try {
       const myFetcher = new Fetcher(
         session.get("token") || customToken || undefined,
         request
       );
-      return await myFetcher
+      const userResponse = await myFetcher
         .fetch(`${this.API_URL}/user`, {
           method: "GET",
           headers: {
@@ -191,6 +194,8 @@ class AuthService {
           throw new Error(err);
         });
 
+        return userResponse || null;
+
     } catch (e) {
       console.log("caught it!", e);
       response = null;
@@ -198,13 +203,14 @@ class AuthService {
       // await this.logout(request);
       throw new Error(e);
     }
-
-    return response;
   }
 
   async getCSRFCookie(request: Request) {
     // await this.logout(request, false);
-    // await sessionStorage.destroySession(session);
+    let session = await sessionStorage.getSession(
+      request.headers.get("Cookie")
+    );
+    await sessionStorage.destroySession(session);
 
     // Call the API server to get the session cookie
     const cookieResponse = await fetch(`${this.API_URL}/sanctum/csrf-cookie`);
