@@ -64,7 +64,7 @@ export const loader: LoaderFunction = async ({
   if (!session.get(getEnv().API_SESSION_NAME)) {
     shouldSetCookies = true;
   }
-  if(!session.get("token") && !user){
+  if(session.get("token") && !user){
     shouldSetCookies = true;
   }
   if(!session.get("XSRF-TOKEN")){
