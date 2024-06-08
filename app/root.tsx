@@ -64,6 +64,9 @@ export const loader: LoaderFunction = async ({
   if (!session.get(getEnv().API_SESSION_NAME)) {
     shouldSetCookies = true;
   }
+  if(!session.get("token") && !user){
+    shouldSetCookies = true;
+  }
   if(!session.get("XSRF-TOKEN")){
     shouldSetCookies = true;
   }
@@ -71,6 +74,7 @@ export const loader: LoaderFunction = async ({
     shouldSetCookies = true;
   }
   console.log("SESSION EXISTS? ", session.get(getEnv().API_SESSION_NAME));
+  console.log("TOKEN EXISTS? ", session.get("token"));
   console.log("USER EXISTS? ", user);
   console.log("USER ERROR? ", userFetchError);
   if(shouldSetCookies){
