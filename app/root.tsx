@@ -70,6 +70,9 @@ export const loader: LoaderFunction = async ({
   if(userFetchError){
     shouldSetCookies = true;
   }
+  console.log("SESSION EXISTS? ", session.get(getEnv().API_SESSION_NAME));
+  console.log("USER EXISTS? ", user);
+  console.log("USER ERROR? ", userFetchError);
   if(shouldSetCookies){
     console.log("Cookie remix session: ", session.get(getEnv().API_SESSION_NAME));
     console.log("Cookie user value: ", user);

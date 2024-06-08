@@ -196,7 +196,7 @@ class AuthService {
       response = null;
 
       // await this.logout(request);
-      // throw new Error(e);
+      throw new Error(e);
     }
 
     return response;
